@@ -1,4 +1,4 @@
-// Vortex MC Launcher - processo principal
+// Obsidian Launcher - processo principal
 // Requer: conta Microsoft dona do Minecraft Java + Java 17/21 instalado
 const { app, BrowserWindow, ipcMain, shell, screen } = require('electron');
 const path = require('path');

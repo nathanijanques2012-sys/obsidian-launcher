@@ -1,4 +1,4 @@
-# Vortex MC Launcher
+# Obsidian Launcher
 
 Launcher Minecraft Java Edition em Electron.
 
