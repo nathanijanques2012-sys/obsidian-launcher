@@ -73,7 +73,8 @@
       {
         "provider": "github",
         "owner": "nathanijanques2012-sys",
-        "repo": "obsidian-launcher"
+        "repo": "obsidian-launcher",
+        "releaseType": "release"
       }
     ]
   },
