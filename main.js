@@ -29,6 +29,23 @@ async function fetchT(url, opts = {}, ms = 45000) {
   return r;
 }
 
+async function downloadFile(url, dest, label = 'arquivo') {
+  // curl.exe é mais robusto que fetch p/ arquivos grandes em PC fraco
+  const log = (m) => win?.webContents.send('launch-log', m);
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  log(`Baixando ${label}...`);
+  try {
+    execFileSync('curl.exe', ['-L', '--fail', '--connect-timeout', '30', '--max-time', '1800', '--retry', '2', '-o', dest, url], { stdio: 'ignore', timeout: 1820000 });
+    const sz = fs.statSync(dest).size;
+    if (sz < 1024) throw new Error('download vazio');
+    log(`${label} baixado (${(sz / 1048576).toFixed(1)} MB) ✓`);
+    return;
+  } catch (e) {
+    try { fs.unlinkSync(dest); } catch {}
+    throw new Error(`Download ${label} falhou. Cheque a internet e tente de novo.`);
+  }
+}
+
 const MESA_VER = '26.2.3';
 const MESA_URL = `https://github.com/pal1000/mesa-dist-win/releases/download/${MESA_VER}/mesa3d-${MESA_VER}-release-msvc.7z`;
 const MESA_DLLS = ['opengl32.dll', 'libgallium_wgl.dll'];
@@ -52,10 +69,7 @@ async function applySoftwareGL(javaExe, on) {
   if (!have) {
     log('Baixando Mesa3D (~68MB, só na 1ª vez)...');
     const zip = path.join(userData(), '.cache', 'mesa.7z');
-    fs.mkdirSync(path.dirname(zip), { recursive: true });
-    const dl = await fetch(MESA_URL);
-    if (!dl.ok) throw new Error('Download Mesa falhou: ' + dl.status);
-    fs.writeFileSync(zip, Buffer.from(await dl.arrayBuffer()));
+    await downloadFile(MESA_URL, zip, 'Mesa3D');
     log('Extraindo Mesa3D...');
     fs.rmSync(mesaDir, { recursive: true, force: true });
     fs.mkdirSync(mesaDir, { recursive: true });
@@ -121,10 +135,7 @@ async function ensureJava(major = 21) {
   if (fs.existsSync(javaExe)) return javaExe;
   log(`Java ${major} não encontrado. Baixando (só na 1ª vez)...`);
   const zip = path.join(userData(), '.cache', `jdk${major}.zip`);
-  fs.mkdirSync(path.dirname(zip), { recursive: true });
-  const r = await fetch(url);
-  if (!r.ok) throw new Error('Falha ao baixar Java: ' + r.status);
-  fs.writeFileSync(zip, Buffer.from(await r.arrayBuffer()));
+  await downloadFile(url, zip, `Java ${major}`);
   log('Extraindo Java...');
   const tmp = path.join(userData(), '.cache', 'jdk-ex');
   fs.rmSync(tmp, { recursive: true, force: true });
