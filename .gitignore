@@ -12,3 +12,4 @@ tools/test-*.js
 obsidian-mod/build/
 obsidian-mod/.gradle/
 *.log
+tools/ui-stub-gen.js
