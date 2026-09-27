@@ -21,7 +21,6 @@ async function init() {
   $('loader').value = s.loader;
   $('autoUpdate').checked = s.autoUpdate !== false;
   $('overlay').checked = s.overlay !== false;
-  $('softwareGL').checked = s.softwareGL === true;
   $('displayMode').value = s.displayMode || 'window';
   const versions = await window.api.getVersions().catch(() => ['1.21', '1.20.4', '1.19.4']);
   $('version').innerHTML = versions.map(v => `<option ${v === s.version ? 'selected' : ''}>${v}</option>`).join('');
@@ -38,7 +37,7 @@ $('btnSave').onclick = async () => {
     javaPath: $('javaPath').value, gameDir: $('gameDir').value || undefined,
     resolution: { width: +$('w').value, height: +$('h').value },
     version: $('version').value, loader: $('loader').value,
-    autoUpdate: $('autoUpdate').checked, overlay: $('overlay').checked, fullscreen: false, displayMode: $('displayMode').value, softwareGL: $('softwareGL').checked
+    autoUpdate: $('autoUpdate').checked, overlay: $('overlay').checked, fullscreen: false, displayMode: $('displayMode').value, softwareGL: false
   });
   $('progress').textContent = 'Config salva ✓';
   $('saveMsg').textContent = '✓ Config salva!';
