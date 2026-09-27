@@ -1,0 +1,613 @@
+// Vortex MC Launcher - processo principal
+// Requer: conta Microsoft dona do Minecraft Java + Java 17/21 instalado
+const { app, BrowserWindow, ipcMain, shell, screen } = require('electron');
+const path = require('path');
+const fs = require('fs');
+const { Client, Authenticator } = require('minecraft-launcher-core');
+const { autoUpdater } = require('electron-updater');
+const { execSync, execFileSync } = require('child_process');
+
+app.setAppUserModelId('com.obsidian.launcher');
+app.setName('Obsidian Launcher');
+
+let win;
+const userData = () => app.getPath('userData');
+const settingsPath = () => path.join(userData(), 'settings.json');
+const accountsPath = () => path.join(userData(), 'accounts.json');
+
+function loadJson(p, fallback) {
+  try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return fallback; }
+}
+function saveJson(p, data) {
+  fs.mkdirSync(path.dirname(p), { recursive: true });
+  fs.writeFileSync(p, JSON.stringify(data, null, 2));
+}
+
+function getBundledJava() {
+  const candidates = [
+    path.join(__dirname, '.jdk21', 'bin', 'javaw.exe'), // dev
+    path.join(userData(), '.jdk21', 'bin', 'javaw.exe') // provisionado
+  ];
+  // Instalação padrão Microsoft OpenJDK
+  const pf = process.env['ProgramFiles'] || 'C:\\Program Files';
+  try {
+    const ms = path.join(pf, 'Microsoft');
+    if (fs.existsSync(ms)) {
+      for (const d of fs.readdirSync(ms)) {
+        if (/^jdk-21/i.test(d)) {
+          const p = path.join(ms, d, 'bin', 'javaw.exe');
+          if (fs.existsSync(p)) candidates.push(p);
+        }
+      }
+    }
+  } catch {}
+  for (const p of candidates) if (p && fs.existsSync(p)) return p;
+  try {
+    execSync('where java', { stdio: ['ignore', 'pipe', 'ignore'] });
+    return 'java'; // está no PATH
+  } catch {}
+  return '';
+}
+
+async function ensureJava() {
+  const found = getBundledJava();
+  if (found) return found;
+  // Baixa Microsoft OpenJDK 21 (~190MB) uma única vez
+  const log = (m) => win?.webContents.send('launch-log', m);
+  const dir = path.join(userData(), '.jdk21');
+  const javaExe = path.join(dir, 'bin', 'javaw.exe');
+  if (fs.existsSync(javaExe)) return javaExe;
+  log('Java 21 não encontrado. Baixando (~190MB, só na 1ª vez)...');
+  const zip = path.join(userData(), '.cache', 'msjdk21.zip');
+  fs.mkdirSync(path.dirname(zip), { recursive: true });
+  const r = await fetch('https://aka.ms/download-jdk/microsoft-jdk-21-windows-x64.zip');
+  if (!r.ok) throw new Error('Falha ao baixar Java: ' + r.status);
+  fs.writeFileSync(zip, Buffer.from(await r.arrayBuffer()));
+  log('Extraindo Java...');
+  const tmp = path.join(userData(), '.cache', 'jdk-ex');
+  fs.rmSync(tmp, { recursive: true, force: true });
+  execFileSync('powershell.exe', ['-NoProfile', '-Command', `Expand-Archive -Path '${zip}' -DestinationPath '${tmp}' -Force`], { stdio: 'ignore' });
+  const inner = fs.readdirSync(tmp, { withFileTypes: true }).find(d => d.isDirectory());
+  if (!inner) throw new Error('Zip do Java inválido');
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.renameSync(path.join(tmp, inner.name), dir);
+  fs.rmSync(zip, { force: true });
+  if (!fs.existsSync(javaExe)) throw new Error('Java extraído mas javaw.exe não achado');
+  log('Java 21 pronto ✓');
+  return javaExe;
+}
+
+function getSettings() {
+  const base = loadJson(settingsPath(), null);
+  const defaults = {
+    ramMin: '2G', ramMax: '4G',
+    javaPath: getBundledJava(), // usa JDK local baixado (.jdk21)
+    resolution: { width: 854, height: 480 },
+    gameDir: path.join(userData(), '.minecraft'),
+    version: '1.21',
+    loader: 'fabric', // vanilla | fabric | forge | optifine
+    overlay: true, // copia obsidian-overlay.jar p/ mods/ automaticamente
+    displayMode: 'window', // window | exclusive | borderless
+    autoUpdate: true
+  };
+  if (!base) return defaults;
+  const merged = { ...defaults, ...base, resolution: base.resolution || defaults.resolution };
+  if (merged.displayMode === undefined || merged.displayMode === null) {
+    merged.displayMode = base.fullscreen ? 'exclusive' : 'window'; // migra config antiga
+  }
+  return merged;
+}
+
+function getOverlayJar() {
+  const p = path.join(__dirname, 'overlay-dist', 'obsidian-overlay.jar');
+  return fs.existsSync(p) ? p : null;
+}
+
+async function ensureFabric(root, mcVersion) {
+  // Baixa profile Fabric oficial (meta.fabricmc.net) p/ versions/
+  const loaders = await (await fetch(`https://meta.fabricmc.net/v2/versions/loader/${mcVersion}`)).json();
+  if (!loaders?.[0]?.loader?.version) throw new Error('Fabric não tem build p/ ' + mcVersion);
+  const loaderVer = loaders[0].loader.version;
+  const name = `fabric-loader-${loaderVer}-${mcVersion}`;
+  const dir = path.join(root, 'versions', name);
+  fs.mkdirSync(dir, { recursive: true });
+  const jsonPath = path.join(dir, `${name}.json`);
+  if (!fs.existsSync(jsonPath)) {
+    const profile = await (await fetch(`https://meta.fabricmc.net/v2/versions/loader/${mcVersion}/${loaderVer}/profile/json`)).json();
+    fs.writeFileSync(jsonPath, JSON.stringify(profile));
+  }
+  return name;
+}
+
+function ensureOverlay(root) {
+  const src = getOverlayJar();
+  if (!src) return null;
+  const mods = path.join(root, 'mods');
+  fs.mkdirSync(mods, { recursive: true });
+  const dest = path.join(mods, 'obsidian-overlay.jar');
+  if (!fs.existsSync(dest) || fs.statSync(src).size !== fs.statSync(dest).size) {
+    fs.copyFileSync(src, dest);
+  }
+  return dest;
+}
+
+function createWindow() {
+  win = new BrowserWindow({
+    width: 1100, height: 720,
+    title: 'Obsidian Launcher',
+    icon: path.join(__dirname, 'assets', 'icon.png'),
+    autoHideMenuBar: true,
+    webPreferences: { preload: path.join(__dirname, 'preload.js') }
+  });
+  win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
+}
+
+// ---------- Auto-update ----------
+function setupAutoUpdate(manual = false) {
+  try {
+    const s = getSettings();
+    if (!s.autoUpdate && !manual) return;
+    if (!app.isPackaged) return; // dev: não checa update, evita erro ao abrir
+    // Build de pasta (--dir) não tem app-update.yml: sem canal de update
+    const yml = path.join(process.resourcesPath, 'app-update.yml');
+    if (!fs.existsSync(yml)) {
+      if (manual) win?.webContents.send('update-status', 'Sem canal de update neste build. Use o instalador (setup) p/ auto-update.');
+      return;
+    }
+    autoUpdater.autoDownload = true;
+    autoUpdater.on('update-available', () => win?.webContents.send('update-status', 'Atualização encontrada. Baixando...'));
+    autoUpdater.on('download-progress', (p) => win?.webContents.send('update-status', `Baixando update ${Math.round(p.percent || 0)}%...`));
+    autoUpdater.on('update-downloaded', () => {
+      win?.webContents.send('update-status', 'Atualização pronta ✓');
+      win?.webContents.send('update-ready');
+    });
+    autoUpdater.on('error', (e) => win?.webContents.send('update-status', 'Update: ' + e.message));
+    // Só funciona com publish configurado (GitHub Releases). Sem isso, falha silenciosa.
+    autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+    // Re-checa a cada 6h com o app aberto
+    if (!global._updTimer) global._updTimer = setInterval(() => { try { autoUpdater.checkForUpdatesAndNotify().catch(() => {}); } catch {} }, 6 * 3600 * 1000);
+  } catch {}
+}
+
+// ---------- IPC ----------
+ipcMain.handle('get-settings', () => getSettings());
+ipcMain.handle('save-settings', (_, s) => {
+  const clean = Object.fromEntries(Object.entries(s || {}).filter(([, v]) => v !== undefined && v !== ''));
+  const cur = getSettings();
+  saveJson(settingsPath(), { ...cur, ...clean, resolution: s.resolution || cur.resolution });
+  return true;
+});
+
+ipcMain.handle('get-versions', async () => {
+  // Lista oficial Mojang (release + snapshot)
+  const res = await fetch('https://piston-meta.mojang.com/mc/game/version_manifest_v2.json');
+  const j = await res.json();
+  return j.versions.filter(v => v.type === 'release').slice(0, 30).map(v => v.id);
+});
+
+ipcMain.handle('get-account', () => {
+  const accounts = loadJson(accountsPath(), []);
+  if (!accounts[0]) return null;
+  const a = accounts[0];
+  return { name: a.profile?.name, type: a.type || 'microsoft' };
+});
+
+ipcMain.handle('logout', () => { saveJson(accountsPath(), []); return true; });
+
+ipcMain.handle('offline-login', async (_, username) => {
+  username = String(username || '').trim();
+  if (!/^[A-Za-z0-9_]{3,16}$/.test(username)) throw new Error('Nick inválido: use 3-16 caracteres, só letras/números/_');
+  const auth = await Authenticator.getAuth(username);
+  const entry = { type: 'offline', profile: { name: username, id: auth.uuid }, auth };
+  saveJson(accountsPath(), [entry]);
+  return { name: username, type: 'offline' };
+});
+ipcMain.handle('ms-login', async () => {
+  // msmc abre janela Microsoft OAuth. Precisa de clientId Azure. Veja README.
+  const { Auth } = require('msmc');
+  const authManager = new Auth('select_account');
+  // IMPORTANTE: troque pelo seu Azure App clientId
+  const clientId = process.env.MSMC_CLIENT_ID || 'SEU-CLIENT-ID-AZURE';
+  authManager.setClientId(clientId);
+  const xboxManager = await authManager.launch('electron');
+  const token = await xboxManager.getMinecraft();
+  const profile = await token.getProfile();
+  // token.mclc() retorna objeto compatível com minecraft-launcher-core
+  const entry = { type: 'microsoft', profile: { id: profile.id, name: profile.name }, mclc: token.mclc() };
+  saveJson(accountsPath(), [entry]);
+  return { name: profile.name, id: profile.id, type: 'microsoft' };
+});
+
+ipcMain.handle('launch', async (_, opts = {}) => {
+  const settings = { ...getSettings(), ...opts };
+  const accounts = loadJson(accountsPath(), []);
+  if (!accounts[0]) throw new Error('Faça login (Microsoft ou offline) primeiro.');
+  const acc = accounts[0];
+  const authorization = acc.type === 'offline' ? acc.auth : acc.mclc;
+  if (!authorization) throw new Error('Conta inválida, faça login de novo.');
+  const launcher = new Client();
+  launcher.on('debug', (e) => win?.webContents.send('launch-log', '[debug] ' + e));
+  launcher.on('data', (e) => win?.webContents.send('launch-log', e));
+  launcher.on('progress', (e) => win?.webContents.send('launch-progress', e));
+
+  // Tela: janela | exclusiva (--fullscreen, não aparece em lives) | borderless (enche a tela e aparece em live)
+  let winOpt = { width: settings.resolution.width, height: settings.resolution.height };
+  if (settings.displayMode === 'exclusive') {
+    winOpt = { width: settings.resolution.width, height: settings.resolution.height, fullscreen: true };
+  } else if (settings.displayMode === 'borderless') {
+    try {
+      const sz = screen.getPrimaryDisplay().size;
+      winOpt = { width: sz.width, height: sz.height };
+    } catch {}
+    win?.webContents.send('launch-log', `Modo borderless ${winOpt.width}x${winOpt.height} (capturável em live) ✓`);
+  }
+  const launchOpts = {
+    clientPackage: null,
+    authorization,
+    root: settings.gameDir,
+    version: { number: settings.version, type: 'release' },
+    memory: { max: settings.ramMax, min: settings.ramMin },
+    window: winOpt
+  };
+  // Java: config > provisionado > PATH; se nada, baixa Microsoft JDK 21
+  let javaPath = settings.javaPath && fs.existsSync(settings.javaPath) ? settings.javaPath : '';
+  if (!javaPath) {
+    win?.webContents.send('launch-log', 'Procurando Java 21...');
+    javaPath = await ensureJava();
+    if (javaPath && javaPath !== settings.javaPath) {
+      saveJson(settingsPath(), { ...getSettings(), javaPath });
+    }
+  }
+  if (!javaPath) throw new Error('Java 21 não encontrado. Instale ou aponte o caminho em Config.');
+  launchOpts.javaPath = javaPath;
+  // Separa mods por loader/versão: mistura (Fabric+Forge+OptiFine) crasha o jogo
+  quarantineMods(settings.gameDir, settings.version, settings.loader);
+  if (settings.loader === 'fabric') {
+    win?.webContents.send('launch-log', 'Instalando Fabric...');
+    const custom = await ensureFabric(settings.gameDir, settings.version);
+    launchOpts.version = { number: settings.version, type: 'release', custom };
+    await ensureFabricApi(settings.gameDir, settings.version);
+    if (settings.overlay) {
+      const o = ensureOverlay(settings.gameDir);
+      win?.webContents.send('launch-log', o ? 'Overlay Obsidian ativo ✓' : 'Overlay .jar não encontrado (rode build do obsidian-mod)');
+    }
+  } else if (settings.loader === 'forge' || settings.loader === 'optifine') {
+    if (settings.loader === 'optifine') {
+      win?.webContents.send('launch-log', 'Instalando par Forge+OptiFine...');
+      launchOpts.forge = (await ensureOptiFine(settings.gameDir, settings.version)).forgeInstaller;
+    } else {
+      win?.webContents.send('launch-log', 'Instalando Forge...');
+      launchOpts.forge = await ensureForge(settings.gameDir, settings.version);
+    }
+  }
+
+  win?.minimize(); // tira o launcher da frente p/ o jogo ganhar foco/mouse
+  await launcher.launch(launchOpts);
+  return true;
+});
+
+async function ensureFabricApi(root, mcVersion) {
+  // Sem Fabric API nenhum mod de Fabric carrega (inclui o overlay)
+  const log = (m) => win?.webContents.send('launch-log', m);
+  const url = `https://api.modrinth.com/v2/project/P7dR8mSH/version?loaders=${JSON.stringify(['fabric'])}&game_versions=${JSON.stringify([mcVersion])}&limit=3`;
+  const r = await fetch(url, { headers: { 'User-Agent': 'ObsidianLauncher/0.2' } });
+  if (!r.ok) { log('Aviso: não achei Fabric API p/ ' + mcVersion); return null; }
+  const versions = await r.json();
+  const ver = (versions || []).find(v => (v.files || []).some(f => f.primary)) || versions[0];
+  if (!ver) return null;
+  const file = (ver.files || []).find(f => f.primary) || ver.files[0];
+  const mods = path.join(root, 'mods');
+  fs.mkdirSync(mods, { recursive: true });
+  const dest = path.join(mods, file.filename);
+  if (fs.existsSync(dest)) { log('Fabric API ok ✓'); return dest; }
+  for (const f of fs.readdirSync(mods)) {
+    if (/^fabric-api-.*\.jar$/.test(f)) fs.unlinkSync(path.join(mods, f));
+  }
+  log(`Baixando Fabric API ${ver.version_number}...`);
+  const dl = await fetch(file.url);
+  if (!dl.ok) throw new Error('Download Fabric API falhou: ' + dl.status);
+  fs.writeFileSync(dest, Buffer.from(await dl.arrayBuffer()));
+  log('Fabric API instalada ✓');
+  return dest;
+}
+
+let _ofTable = null;
+async function scrapeOptiFineTable() {
+  // A tabela do optifine.net diz o Forge compatível de cada OptiFine/MC.
+  // Ex: 1.21.1 -> OptiFine_1.21.1_HD_U_J1.jar + Forge 52.0.16
+  if (_ofTable) return _ofTable;
+  const page = await (await fetch('https://optifine.net/downloads', { headers: { 'User-Agent': 'Mozilla/5.0' } })).text();
+  const table = {};
+  for (const [, mc, body] of page.matchAll(/<h2>Minecraft ([\d.]+)\s*<\/h2>([\s\S]*?)(?=<h2>|$)/g)) {
+    const rows = [...body.matchAll(/<tr class='downloadLine([^']*)'>[\s\S]*?colFile'>([^<]+)<[\s\S]*?adloadx\?f=([^'")\s&]+)[\s\S]*?colForge'>([^<]*)</g)];
+    const main = rows.find(r => (r[1] || '').includes('downloadLineMain'));
+    if (main) table[mc] = { name: main[2].trim(), file: main[3].trim(), forge: (main[4].trim().match(/[\d.]+/) || [])[0] || null };
+  }
+  _ofTable = table;
+  return table;
+}
+
+function jarKind(p) {
+  try {
+    const AdmZip = require('adm-zip');
+    const names = new AdmZip(p).getEntries().map(e => e.entryName);
+    return { fabric: names.includes('fabric.mod.json'), forge: names.includes('META-INF/mods.toml') };
+  } catch { return { fabric: false, forge: false }; }
+}
+
+function fabricMcOk(p, mc) {
+  // Lê depends.minecraft do fabric.mod.json; sem info, mantém
+  try {
+    const AdmZip = require('adm-zip');
+    const j = JSON.parse(new AdmZip(p).readAsText('fabric.mod.json'));
+    let dep = j.depends && j.depends.minecraft;
+    if (!dep) return true;
+    if (Array.isArray(dep)) dep = dep.join(' ');
+    const tokens = String(dep).match(/\d+(\.\d+){1,2}/g) || [];
+    if (!tokens.length) return true;
+    return tokens.some(t => mc === t || mc.startsWith(t + '.') || t.startsWith(mc + '.'));
+  } catch { return true; }
+}
+
+function quarantineMods(root, mc, loader) {
+  // Uma pasta mods/ para todos os loaders mistura jars incompatíveis e crasha.
+  // Move o que não serve p/ mods/.disabled/ e restaura o que serve.
+  const log = (m) => win?.webContents.send('launch-log', m);
+  const mods = path.join(root, 'mods');
+  const dis = path.join(mods, '.disabled');
+  fs.mkdirSync(mods, { recursive: true });
+  fs.mkdirSync(dis, { recursive: true });
+  const ofMc = (n) => { const m = n.match(/^(?:preview_)?OptiFine_([\d.]+)_HD_U_.*\.jar$/); return m ? m[1] : null; };
+  const keep = (dir, name) => {
+    const full = path.join(dir, name);
+    if (!/\.jar$/i.test(name)) return false;
+    const omc = ofMc(name);
+    if (omc) return loader === 'forge' || loader === 'optifine' ? omc === mc : false;
+    const k = jarKind(full);
+    if (loader === 'vanilla') return false;
+    if (loader === 'fabric') return k.fabric && fabricMcOk(full, mc);
+    if (loader === 'forge' || loader === 'optifine') return k.forge && !k.fabric;
+    return false;
+  };
+  const moved = [];
+  for (const f of fs.readdirSync(mods)) {
+    if (f === '.disabled') continue;
+    if (!keep(mods, f)) { fs.renameSync(path.join(mods, f), path.join(dis, f)); moved.push(f); }
+  }
+  const back = [];
+  for (const f of fs.readdirSync(dis)) {
+    if (keep(dis, f)) { fs.renameSync(path.join(dis, f), path.join(mods, f)); back.push(f); }
+  }
+  if (moved.length) log(`Mods incompatíveis guardados (${moved.length}): ${moved.slice(0, 3).join(', ')}${moved.length > 3 ? '...' : ''}`);
+  if (back.length) log(`Mods restaurados (${back.length}) ✓`);
+}
+
+async function ensureForge(root, mcVersion, pinned = null) {
+  const log = (m) => win?.webContents.send('launch-log', m);
+  let forgeVer = pinned;
+  if (!forgeVer) {
+    const promos = await (await fetch('https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json')).json();
+    forgeVer = (promos.promos || {})[`${mcVersion}-recommended`] || (promos.promos || {})[`${mcVersion}-latest`];
+  }
+  if (!forgeVer) throw new Error(`Forge não tem build p/ ${mcVersion}. Use 1.20.1 ou 1.21.1.`);
+  const file = `forge-${mcVersion}-${forgeVer}-installer.jar`;
+  const dir = path.join(root, 'forge-installers');
+  fs.mkdirSync(dir, { recursive: true });
+  const dest = path.join(dir, file);
+  if (!fs.existsSync(dest)) {
+    log(`Baixando Forge ${forgeVer}...`);
+    const dl = await fetch(`https://maven.minecraftforge.net/net/minecraftforge/forge/${mcVersion}-${forgeVer}/${file}`);
+    if (!dl.ok) throw new Error('Download Forge falhou: ' + dl.status);
+    fs.writeFileSync(dest, Buffer.from(await dl.arrayBuffer()));
+  }
+  // Invalida cache do MCLC se trocou a versão do installer
+  const cache = path.join(root, 'forge', mcVersion);
+  const stamp = path.join(cache, 'installer.version');
+  try {
+    if (fs.readFileSync(stamp, 'utf8') !== file) fs.rmSync(cache, { recursive: true, force: true });
+  } catch { try { fs.rmSync(cache, { recursive: true, force: true }); } catch {} }
+  fs.mkdirSync(cache, { recursive: true });
+  fs.writeFileSync(stamp, file);
+  log(`Forge ${forgeVer} pronto ✓`);
+  return dest;
+}
+
+async function ensureOptiFine(root, mcVersion) {
+  // Usa a tabela oficial: cada OptiFine tem UM Forge compatível.
+  // Forge "latest" + OptiFine errado = NoSuchMethodError e crash no mundo.
+  const log = (m) => win?.webContents.send('launch-log', m);
+  const table = await scrapeOptiFineTable();
+  const row = table[mcVersion];
+  if (!row || !row.forge) {
+    const ok = Object.keys(table).join(', ');
+    throw new Error(`OptiFine estável não tem build p/ ${mcVersion} (só previews, sem Forge). Use: ${ok}`);
+  }
+  log(`Par oficial: OptiFine ${row.name} + Forge ${row.forge}`);
+  const forgeInstaller = await ensureForge(root, mcVersion, row.forge);
+  const mods = path.join(root, 'mods');
+  fs.mkdirSync(mods, { recursive: true });
+  const dest = path.join(mods, row.file);
+  if (fs.existsSync(dest)) { log('OptiFine ok ✓'); return { dest, forgeInstaller }; }
+  log(`Baixando ${row.file}...`);
+  const dlBuf = async () => {
+    const ad = await (await fetch(`https://optifine.net/adloadx?f=${row.file}`, { headers: { 'User-Agent': 'Mozilla/5.0' } })).text();
+    const link = ad.match(/downloadx\?f=[^'"\s]+/);
+    if (!link) return null;
+    const dl = await fetch('https://optifine.net/' + link[0], { headers: { 'User-Agent': 'Mozilla/5.0', Referer: `https://optifine.net/adloadx?f=${row.file}` } });
+    if (!dl.ok) return null;
+    const buf = Buffer.from(await dl.arrayBuffer());
+    if (buf.length > 1024 * 1024 && buf[0] === 0x50 && buf[1] === 0x4B) return buf;
+    return null;
+  };
+  const buf = await dlBuf();
+  if (!buf) throw new Error('OptiFine recusou o download. Baixe manual em optifine.net e jogue o .jar em mods/');
+  fs.writeFileSync(dest, buf);
+  log('OptiFine instalado ✓ (vai como mod do Forge)');
+  return { dest, forgeInstaller };
+}
+
+ipcMain.handle('search-modrinth', async (_, query, loader, mcVersion, kind = 'mod') => {
+  // kind: mod | shader | resourcepack | modpack
+  const typeMap = { mod: 'mod', shader: 'shader', resourcepack: 'resourcepack', modpack: 'modpack' };
+  const facets = [[`project_type:${typeMap[kind] || 'mod'}`], [`versions:${mcVersion}`]];
+  if (kind === 'mod') facets.push([`categories:${(loader === 'forge' || loader === 'optifine') ? 'forge' : 'fabric'}`]);
+  const url = `https://api.modrinth.com/v2/search?query=${encodeURIComponent(query)}&facets=${encodeURIComponent(JSON.stringify(facets))}&limit=20`;
+  const r = await fetch(url, { headers: { 'User-Agent': 'ObsidianLauncher/0.2' } });
+  return r.json();
+});
+
+const CONTENT_DIRS = { mod: 'mods', shader: 'shaderpacks', resourcepack: 'resourcepacks', modpack: 'modpacks' };
+const CONTENT_EXTS = { mod: ['.jar'], shader: ['.zip', '.jar'], resourcepack: ['.zip'], modpack: ['.mrpack'] };
+
+function getContentDir(kind) {
+  const d = path.join(getSettings().gameDir, CONTENT_DIRS[kind] || 'mods');
+  fs.mkdirSync(d, { recursive: true });
+  return d;
+}
+function getModsDir() { return getContentDir('mod'); }
+
+ipcMain.handle('mods-list', () => {
+  const dir = getModsDir();
+  return fs.readdirSync(dir).filter(f => f.endsWith('.jar')).map(f => {
+    const st = fs.statSync(path.join(dir, f));
+    return { name: f, size: st.size };
+  });
+});
+
+ipcMain.handle('content-list', (_, kind) => {
+  const dir = getContentDir(kind);
+  const exts = CONTENT_EXTS[kind] || ['.jar'];
+  return fs.readdirSync(dir).filter(f => exts.some(e => f.endsWith(e))).map(f => {
+    const st = fs.statSync(path.join(dir, f));
+    return { name: f, size: st.size };
+  });
+});
+
+ipcMain.handle('open-mods-folder', async () => {
+  await shell.openPath(getModsDir());
+  return true;
+});
+
+ipcMain.handle('open-content-folder', async (_, kind) => {
+  await shell.openPath(getContentDir(kind));
+  return true;
+});
+
+ipcMain.handle('open-game-dir', async () => {
+  const d = getSettings().gameDir;
+  fs.mkdirSync(d, { recursive: true });
+  await shell.openPath(d);
+  return true;
+});
+
+ipcMain.handle('last-crash', () => {
+  const dir = path.join(getSettings().gameDir, 'crash-reports');
+  if (!fs.existsSync(dir)) return { file: null, head: 'Sem pasta crash-reports (sem crash registrado). Veja logs/latest.log na pasta do jogo.' };
+  const files = fs.readdirSync(dir).filter(f => f.endsWith('.txt'))
+    .map(f => ({ f, t: fs.statSync(path.join(dir, f)).mtimeMs }))
+    .sort((a, b) => b.t - a.t);
+  if (!files.length) return { file: null, head: 'Sem crash-reports.' };
+  const full = fs.readFileSync(path.join(dir, files[0].f), 'utf8');
+  return { file: files[0].f, head: full.split('\n').slice(0, 45).join('\n') };
+});
+
+ipcMain.handle('mod-delete', (_, name) => {
+  const p = path.join(getModsDir(), path.basename(name));
+  if (fs.existsSync(p)) fs.unlinkSync(p);
+  return true;
+});
+
+ipcMain.handle('content-delete', (_, kind, name) => {
+  const p = path.join(getContentDir(kind), path.basename(name));
+  if (fs.existsSync(p)) fs.unlinkSync(p);
+  return true;
+});
+
+async function downloadModrinthFile(projectId, loader, mcVersion, kind) {
+  const isPack = kind === 'modpack';
+  // Só mods usam filtro de loader (fabric/forge). Shaders/texturas usam
+  // loaders próprios (iris/optifine/minecraft) — filtrar só por versão do jogo.
+  let url = `https://api.modrinth.com/v2/project/${projectId}/version?game_versions=${JSON.stringify([mcVersion])}&limit=10`;
+  if (kind === 'mod') url += `&loaders=${JSON.stringify([(loader === 'forge' || loader === 'optifine') ? 'forge' : 'fabric'])}`;
+  const r = await fetch(url, { headers: { 'User-Agent': 'ObsidianLauncher/0.2' } });
+  if (!r.ok) throw new Error('Sem build para MC ' + mcVersion + (kind === 'mod' ? ' (' + loader + ')' : ''));
+  const versions = await r.json();
+  if (!versions?.length) throw new Error(`Sem build para MC ${mcVersion} — tente outra versão no Jogar`);
+  const ver = (versions || []).find(v => (v.files || []).some(f => f.primary)) || versions[0];
+  if (!ver) throw new Error('Nenhuma versão encontrada');
+  const file = (ver.files || []).find(f => f.primary) || ver.files[0];
+  if (!file) throw new Error('Arquivo inválido');
+  return { version: ver.version_number, mc: (ver.game_versions || []).join(','), file };
+}
+
+ipcMain.handle('mod-download', async (_, projectId, loader, mcVersion) => {
+  const { version, mc, file } = await downloadModrinthFile(projectId, loader, mcVersion, 'mod');
+  const dest = path.join(getModsDir(), file.filename);
+  if (fs.existsSync(dest)) return { file: file.filename, version, mc, skipped: true };
+  const dl = await fetch(file.url);
+  if (!dl.ok) throw new Error('Download falhou: ' + dl.status);
+  fs.writeFileSync(dest, Buffer.from(await dl.arrayBuffer()));
+  win?.webContents.send('launch-log', `Mod instalado: ${file.filename} (v${version} • MC ${mc || mcVersion})`);
+  return { file: file.filename, version, mc, skipped: false };
+});
+
+ipcMain.handle('content-download', async (_, kind, projectId, loader, mcVersion) => {
+  if (kind === 'modpack') return installModpack(projectId, mcVersion);
+  const { version, mc, file } = await downloadModrinthFile(projectId, loader, mcVersion, kind);
+  const dest = path.join(getContentDir(kind), file.filename);
+  if (fs.existsSync(dest)) return { file: file.filename, version, mc, skipped: true };
+  const dl = await fetch(file.url);
+  if (!dl.ok) throw new Error('Download falhou: ' + dl.status);
+  fs.writeFileSync(dest, Buffer.from(await dl.arrayBuffer()));
+  const label = { shader: 'Shader', resourcepack: 'Resource pack' }[kind] || 'Arquivo';
+  win?.webContents.send('launch-log', `${label} instalado: ${file.filename} (v${version})`);
+  return { file: file.filename, version, mc, skipped: false };
+});
+
+async function installModpack(projectId, mcVersion) {
+  // Baixa .mrpack e instala: arquivos -> mods/, overrides -> pasta do jogo
+  const AdmZip = require('adm-zip');
+  const { version, file } = await downloadModrinthFile(projectId, 'fabric', mcVersion, 'modpack');
+  const dir = getContentDir('modpack');
+  const mrpack = path.join(dir, file.filename);
+  const log = (m) => win?.webContents.send('launch-log', m);
+  if (!fs.existsSync(mrpack)) {
+    log(`Baixando modpack ${file.filename}...`);
+    const dl = await fetch(file.url);
+    if (!dl.ok) throw new Error('Download falhou: ' + dl.status);
+    fs.writeFileSync(mrpack, Buffer.from(await dl.arrayBuffer()));
+  }
+  const zip = new AdmZip(mrpack);
+  const indexEntry = zip.getEntry('modrinth.index.json');
+  if (!indexEntry) throw new Error('.mrpack inválido (sem modrinth.index.json)');
+  const index = JSON.parse(zip.readAsText(indexEntry));
+  const root = getSettings().gameDir;
+  let n = 0;
+  for (const f of index.files || []) {
+    const target = path.join(root, f.path.replace(/\//g, path.sep));
+    if (fs.existsSync(target)) continue;
+    const url = (f.downloads || [])[0];
+    if (!url) continue;
+    log(`Modpack: baixando ${f.path} (${++n}/${index.files.length})...`);
+    const dl = await fetch(url);
+    if (!dl.ok) continue;
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, Buffer.from(await dl.arrayBuffer()));
+  }
+  // overrides/ -> raiz do jogo
+  for (const e of zip.getEntries()) {
+    if (!e.entryName.startsWith('overrides/') || e.isDirectory) continue;
+    const target = path.join(root, e.entryName.slice('overrides/'.length).replace(/\//g, path.sep));
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, zip.readFile(e));
+  }
+  log(`Modpack ${file.filename} instalado ✓ (${n} arquivos)`);
+  return { file: file.filename, version, mc: mcVersion, skipped: false };
+}
+
+ipcMain.handle('check-update', () => { setupAutoUpdate(true); return true; });
+ipcMain.handle('quit-and-install', () => { try { autoUpdater.quitAndInstall(); } catch {} return true; });
+
+app.whenReady().then(() => { createWindow(); setupAutoUpdate(); });
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });

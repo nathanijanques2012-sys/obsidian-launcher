@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Obsidian Launcher</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo"><span class="logo-cube"></span><div><b>OBSIDIAN</b><small>launcher</small></div></div>
+    <nav>
+      <button class="nav active" data-page="play">▶ Jogar</button>
+      <button class="nav" data-page="mods">🧩 Mods</button>
+      <button class="nav" data-page="shaders">✨ Shaders</button>
+      <button class="nav" data-page="packs">🎨 Texturas</button>
+      <button class="nav" data-page="modpacks">📦 Modpacks</button>
+      <button class="nav" data-page="config">⚙ Config</button>
+      <button class="nav" data-page="about">ⓘ Sobre</button>
+    </nav>
+    <div class="account">
+      <div id="user" class="user">Não logado</div>
+      <div class="acc-row">
+        <button id="btnLogout" class="ghost" title="Sair">Sair</button>
+        <button id="btnUpdate" class="ghost" title="Checar atualização">↻</button>
+      </div>
+      <div class="acc-row">
+        <button id="btnRestart" class="primary" style="display:none;width:100%">Reiniciar e atualizar</button>
+      </div>
+      <small id="updStatus" class="muted"></small>
+    </div>
+  </aside>
+
+  <main class="content">
+    <section id="page-play" class="page active">
+      <div class="hero">
+        <div>
+          <h1>Pronto para minerar?</h1>
+          <p class="muted">Vanilla • Fabric • Forge • Modrinth • Auto-update</p>
+        </div>
+        <div class="hero-actions">
+          <select id="version" title="Versão"></select>
+          <select id="loader" title="Loader">
+            <option value="vanilla">Vanilla</option>
+            <option value="fabric">Fabric</option>
+            <option value="forge">Forge</option>
+            <option value="optifine">Forge + OptiFine</option>
+          </select>
+          <button id="btnPlay" class="play">JOGAR</button>
+        </div>
+      </div>
+
+      <div class="card login-card">
+        <div>
+          <h2>Conta</h2>
+          <p class="muted">Microsoft = servidores originais. Offline = singleplayer + servidor com online-mode=false.</p>
+        </div>
+        <div class="login-row">
+          <button id="btnLogin" class="primary">Login Microsoft</button>
+          <span class="or">ou</span>
+          <input id="offlineName" placeholder="nick offline" maxlength="16">
+          <button id="btnOffline">Entrar offline</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Status</h2>
+        <div class="bar"><div id="barFill"></div></div>
+        <div id="progress" class="muted">Parado</div>
+        <div class="login-row">
+          <button id="btnGameDir" class="ghost">Pasta do jogo</button>
+          <button id="btnCrash" class="ghost">Ver último crash</button>
+        </div>
+        <pre id="log">Bem-vindo ao Obsidian Launcher ⬢&#10;</pre>
+      </div>
+    </section>
+
+    <section id="page-mods" class="page">
+      <div class="card">
+        <h2>Mods — Modrinth <span id="modsCtx" class="chip"></span></h2>
+        <p class="muted">Baixa direto para <code>mods/</code> da versão/loader selecionados no Jogar. Precisa de Fabric/Forge para carregar.</p>
+        <div class="login-row">
+          <input id="modQuery" placeholder="ex: sodium, iris, appleskin">
+          <button id="btnSearch" class="primary">Buscar</button>
+          <button id="btnModsFolder" class="ghost">Abrir pasta</button>
+          <button id="btnModsRefresh" class="ghost">Atualizar</button>
+        </div>
+        <div id="mods"></div>
+      </div>
+      <div class="card">
+        <h2>Instalados (<span id="modsCount">0</span>)</h2>
+        <div id="modsInstalled"></div>
+      </div>
+      <div class="card">
+        <h2>Overlay Obsidian (in-game)</h2>
+        <p class="muted">Menu estilo Labymod dentro do Minecraft = mod Fabric em Java. Scaffold em <code>obsidian-mod/</code>. Build gera <code>obsidian-overlay.jar</code> — coloque em mods/ e jogue com loader Fabric.</p>
+        <div class="login-row">
+          <button id="btnOverlayInfo" class="primary">Como ativar</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="page-shaders" class="page">
+      <div class="card">
+        <h2>Shaders — Modrinth <span id="shadersCtx" class="chip"></span></h2>
+        <p class="muted">Vai para <code>shaderpacks/</code>. No jogo precisa de Iris ou OptiFine.</p>
+        <div class="login-row">
+          <input id="shaderQuery" placeholder="ex: bliss, complementary">
+          <button id="btnShaderSearch" class="primary">Buscar</button>
+          <button id="btnShadersFolder" class="ghost">Abrir pasta</button>
+          <button id="btnShadersRefresh" class="ghost">Atualizar</button>
+        </div>
+        <div id="shaders"></div>
+      </div>
+      <div class="card"><h2>Instalados (<span id="shadersCount">0</span>)</h2><div id="shadersInstalled"></div></div>
+    </section>
+
+    <section id="page-packs" class="page">
+      <div class="card">
+        <h2>Resource packs — Modrinth <span id="packsCtx" class="chip"></span></h2>
+        <p class="muted">Vai para <code>resourcepacks/</code>. Ative em Opções → Pacotes de recursos.</p>
+        <div class="login-row">
+          <input id="packQuery" placeholder="ex: faithful, fresh animations">
+          <button id="btnPackSearch" class="primary">Buscar</button>
+          <button id="btnPacksFolder" class="ghost">Abrir pasta</button>
+          <button id="btnPacksRefresh" class="ghost">Atualizar</button>
+        </div>
+        <div id="packs"></div>
+      </div>
+      <div class="card"><h2>Instalados (<span id="packsCount">0</span>)</h2><div id="packsInstalled"></div></div>
+    </section>
+
+    <section id="page-modpacks" class="page">
+      <div class="card">
+        <h2>Modpacks — Modrinth <span id="modpacksCtx" class="chip"></span></h2>
+        <p class="muted">Baixa o <code>.mrpack</code> e instala tudo: mods + configs na pasta do jogo. Demora — acompanhe no log da aba Jogar.</p>
+        <div class="login-row">
+          <input id="modpackQuery" placeholder="ex: better mc, dawncraft">
+          <button id="btnModpackSearch" class="primary">Buscar</button>
+          <button id="btnModpacksFolder" class="ghost">Abrir pasta</button>
+          <button id="btnModpacksRefresh" class="ghost">Atualizar</button>
+        </div>
+        <div id="modpacks"></div>
+      </div>
+      <div class="card"><h2>Baixados (<span id="modpacksCount">0</span>)</h2><div id="modpacksInstalled"></div></div>
+    </section>
+
+    <section id="page-config" class="page">
+      <div class="card">
+        <h2>Configurações</h2>
+        <div class="grid2">
+          <label>RAM mínima <input id="ramMin" value="2G"></label>
+          <label>RAM máxima <input id="ramMax" value="4G"></label>
+          <label>Java (vazio = auto) <input id="javaPath" placeholder="C:\...\javaw.exe"></label>
+          <label>Pasta do jogo <input id="gameDir" placeholder="...\.minecraft"></label>
+          <label>Largura <input id="w" type="number" value="854"></label>
+          <label>Altura <input id="h" type="number" value="480"></label>
+        </div>
+        <label class="check"><input id="autoUpdate" type="checkbox" checked> Atualização automática do launcher</label>
+        <label class="check"><input id="overlay" type="checkbox" checked> Ativar overlay Obsidian (Fabric, tecla O)</label>
+        <label>Tela do jogo
+          <select id="displayMode">
+            <option value="window">Janela (largura/altura acima)</option>
+            <option value="borderless">Tela cheia em janela (recomendado p/ live)</option>
+            <option value="exclusive">Tela cheia exclusiva (F11, não captura em live)</option>
+          </select>
+        </label>
+        <button id="btnSave" class="primary">Salvar</button>
+        <span id="saveMsg" class="muted"></span>
+      </div>
+    </section>
+
+    <section id="page-about" class="page">
+      <div class="card">
+        <h2>Obsidian Launcher</h2>
+        <p>Launcher Minecraft Java Edition em Electron.</p>
+        <ul>
+          <li>Login Microsoft oficial + modo offline</li>
+          <li>Vanilla / Fabric / Forge + Modrinth</li>
+          <li>Setup NSIS gerado via electron-builder</li>
+        </ul>
+        <p class="muted">Use apenas com jogo original. Offline não acessa servidores premium (Hypixel etc).</p>
+      </div>
+    </section>
+  </main>
+</div>
+<script src="renderer.js"></script>
+</body>
+</html>

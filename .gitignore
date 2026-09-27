@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.jdk21/
+.gradle-dist/
+tools/portablegit/
+tools/nsis/
+tools/icotest/
+tools/clip.*
+tools/frames/
+tools/setup-*.exe
+tools/test-*.js
+obsidian-mod/build/
+obsidian-mod/.gradle/
+*.log

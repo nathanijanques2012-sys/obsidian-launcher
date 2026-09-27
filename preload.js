@@ -1,0 +1,28 @@
+const { contextBridge, ipcRenderer } = require('electron');
+contextBridge.exposeInMainWorld('api', {
+  getSettings: () => ipcRenderer.invoke('get-settings'),
+  saveSettings: (s) => ipcRenderer.invoke('save-settings', s),
+  getVersions: () => ipcRenderer.invoke('get-versions'),
+  login: () => ipcRenderer.invoke('ms-login'),
+  offlineLogin: (u) => ipcRenderer.invoke('offline-login', u),
+  getAccount: () => ipcRenderer.invoke('get-account'),
+  logout: () => ipcRenderer.invoke('logout'),
+  launch: (opts) => ipcRenderer.invoke('launch', opts),
+  searchModrinth: (q, loader, mc, kind) => ipcRenderer.invoke('search-modrinth', q, loader, mc, kind),
+  contentDownload: (kind, pid, loader, mc) => ipcRenderer.invoke('content-download', kind, pid, loader, mc),
+  contentList: (kind) => ipcRenderer.invoke('content-list', kind),
+  contentDelete: (kind, n) => ipcRenderer.invoke('content-delete', kind, n),
+  openContentFolder: (kind) => ipcRenderer.invoke('open-content-folder', kind),
+  openGameDir: () => ipcRenderer.invoke('open-game-dir'),
+  lastCrash: () => ipcRenderer.invoke('last-crash'),
+  modsList: () => ipcRenderer.invoke('mods-list'),
+  modDownload: (pid, loader, mc) => ipcRenderer.invoke('mod-download', pid, loader, mc),
+  modDelete: (n) => ipcRenderer.invoke('mod-delete', n),
+  openModsFolder: () => ipcRenderer.invoke('open-mods-folder'),
+  checkUpdate: () => ipcRenderer.invoke('check-update'),
+  installUpdate: () => ipcRenderer.invoke('quit-and-install'),
+  onLog: (cb) => ipcRenderer.on('launch-log', (_, v) => cb(v)),
+  onProgress: (cb) => ipcRenderer.on('launch-progress', (_, v) => cb(v)),
+  onUpdateStatus: (cb) => ipcRenderer.on('update-status', (_, v) => cb(v)),
+  onUpdateReady: (cb) => ipcRenderer.on('update-ready', () => cb())
+});

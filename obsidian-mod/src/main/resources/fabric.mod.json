@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "obsidian-overlay",
+  "version": "${version}",
+  "name": "Obsidian Overlay",
+  "description": "HUD + menu custom do Obsidian Launcher",
+  "authors": ["Obsidian"],
+  "license": "MIT",
+  "icon": "assets/obsidian/icon.png",
+  "environment": "client",
+  "entrypoints": { "client": ["com.obsidian.OverlayMod"] },
+  "depends": { "fabricloader": ">=0.16", "fabric-api": "*", "minecraft": "~1.21", "java": ">=21" }
+}

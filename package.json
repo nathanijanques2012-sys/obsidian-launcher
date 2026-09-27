@@ -1,0 +1,82 @@
+{
+  "name": "obsidian-launcher",
+  "version": "0.2.0",
+  "description": "Obsidian Launcher - Minecraft Java Edition",
+  "author": "Obsidian",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis portable",
+    "pack": "electron-builder --dir",
+    "fix-exe": "node tools/fix-exe.js",
+    "setup": "npm run pack && node tools/fix-exe.js && node tools/build-setup.js"
+  },
+  "dependencies": {
+    "adm-zip": "^0.6.1",
+    "electron-updater": "^6.1.8",
+    "minecraft-launcher-core": "^3.17.1",
+    "msmc": "^4.1.0"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.obsidian.launcher",
+    "productName": "Obsidian Launcher",
+    "icon": "assets/icon.ico",
+    "directories": {
+      "output": "dist"
+    },
+    "asar": false,
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "overlay-dist/**/*",
+      "assets/icon.png",
+      "node_modules/psl/**/*",
+      "package.json",
+      "!**/.jdk21/**"
+    ],
+    "win": {
+      "icon": "assets/icon.ico",
+      "executableName": "Obsidian Launcher",
+      "requestedExecutionLevel": "asInvoker",
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Obsidian Launcher",
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "nathanijanques2012-sys",
+        "repo": "obsidian-launcher"
+      }
+    ]
+  },
+  "allowScripts": {
+    "electron@31.7.7": true
+  }
+}
