@@ -30,20 +30,27 @@ async function fetchT(url, opts = {}, ms = 45000) {
 }
 
 async function downloadFile(url, dest, label = 'arquivo') {
-  // curl.exe é mais robusto que fetch p/ arquivos grandes em PC fraco
+  // curl.exe é mais robusto que fetch p/ arquivos grandes em PC fraco; fetch de fallback
   const log = (m) => win?.webContents.send('launch-log', m);
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   log(`Baixando ${label}...`);
+  let lastErr = '';
   try {
     execFileSync('curl.exe', ['-L', '--fail', '--connect-timeout', '30', '--max-time', '1800', '--retry', '2', '-o', dest, url], { stdio: 'ignore', timeout: 1820000 });
-    const sz = fs.statSync(dest).size;
-    if (sz < 1024) throw new Error('download vazio');
-    log(`${label} baixado (${(sz / 1048576).toFixed(1)} MB) ✓`);
-    return;
-  } catch (e) {
-    try { fs.unlinkSync(dest); } catch {}
-    throw new Error(`Download ${label} falhou. Cheque a internet e tente de novo.`);
+  } catch (e) { lastErr = 'curl falhou (rede bloqueada ou lenta)'; }
+  if (!fs.existsSync(dest) || fs.statSync(dest).size < 1024) {
+    try {
+      log('Tentando download alternativo...');
+      const r = await fetch(url, { signal: AbortSignal.timeout(1800000) });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      fs.writeFileSync(dest, Buffer.from(await r.arrayBuffer()));
+    } catch (e2) {
+      try { fs.unlinkSync(dest); } catch {}
+      throw new Error(`Download ${label} falhou (${lastErr}). Cheque internet/espaço em disco.`);
+    }
   }
+  const sz = fs.statSync(dest).size;
+  log(`${label} baixado (${(sz / 1048576).toFixed(1)} MB) ✓`);
 }
 
 const MESA_VER = '26.2.3';
@@ -73,7 +80,11 @@ async function applySoftwareGL(javaExe, on) {
     log('Extraindo Mesa3D...');
     fs.rmSync(mesaDir, { recursive: true, force: true });
     fs.mkdirSync(mesaDir, { recursive: true });
-    execFileSync('tar.exe', ['-xf', zip, '-C', mesaDir], { stdio: 'ignore' });
+    try {
+      execFileSync('tar.exe', ['-xf', zip, '-C', mesaDir], { stdio: 'ignore', timeout: 300000 });
+    } catch {
+      throw new Error('Falha ao extrair Mesa (tar.exe ausente? Windows 10+ necessário).');
+    }
     fs.rmSync(zip, { force: true });
     if (!MESA_DLLS.every(f => fs.existsSync(path.join(mesaDir, 'x64', f)))) throw new Error('Mesa extraído incompleto');
   }
