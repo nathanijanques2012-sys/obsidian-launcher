@@ -69,43 +69,60 @@ async function applySoftwareGL(javaExe, on) {
   log('Modo compatibilidade ATIVO (software, FPS menor) ✓');
 }
 
-function getBundledJava() {  const candidates = [
-    path.join(__dirname, '.jdk21', 'bin', 'javaw.exe'), // dev
-    path.join(userData(), '.jdk21', 'bin', 'javaw.exe') // provisionado
+function getBundledJava(major = 21) {
+  const candidates = [
+    path.join(__dirname, `.jdk${major}`, 'bin', 'javaw.exe'), // dev
+    path.join(userData(), `.jdk${major}`, 'bin', 'javaw.exe') // provisionado
   ];
-  // Instalação padrão Microsoft OpenJDK
+  // Instalação padrão (Microsoft / Temurin / Oracle)
   const pf = process.env['ProgramFiles'] || 'C:\\Program Files';
+  const javaHome = process.env['JAVA_HOME'];
+  if (javaHome) candidates.push(path.join(javaHome, 'bin', 'javaw.exe'));
   try {
-    const ms = path.join(pf, 'Microsoft');
-    if (fs.existsSync(ms)) {
-      for (const d of fs.readdirSync(ms)) {
-        if (/^jdk-21/i.test(d)) {
-          const p = path.join(ms, d, 'bin', 'javaw.exe');
+    for (const base of [path.join(pf, 'Microsoft'), path.join(pf, 'Eclipse Foundation'), path.join(pf, 'Java')]) {
+      if (!fs.existsSync(base)) continue;
+      for (const d of fs.readdirSync(base)) {
+        if (new RegExp(`jdk-${major}[.-]`, 'i').test(d + '-')) {
+          const p = path.join(base, d, 'bin', 'javaw.exe');
           if (fs.existsSync(p)) candidates.push(p);
         }
       }
     }
   } catch {}
   for (const p of candidates) if (p && fs.existsSync(p)) return p;
-  try {
-    execSync('where java', { stdio: ['ignore', 'pipe', 'ignore'] });
-    return 'java'; // está no PATH
-  } catch {}
   return '';
 }
 
-async function ensureJava() {
-  const found = getBundledJava();
+async function getRequiredJava(mcVersion) {
+  // O JSON da versão diz o Java (1.21.x=21, 26.x=25). Sem rede, assume 21.
+  try {
+    const m = await (await fetchT('https://piston-meta.mojang.com/mc/game/version_manifest_v2.json')).json();
+    const v = (m.versions || []).find(x => x.id === mcVersion);
+    if (!v) return 21;
+    const j = await (await fetchT(v.url)).json();
+    return (j.javaVersion && j.javaVersion.majorVersion) || 21;
+  } catch { return 21; }
+}
+
+const JDK_URLS = {
+  21: 'https://aka.ms/download-jdk/microsoft-jdk-21-windows-x64.zip',
+  25: 'https://api.adoptium.net/v3/binary/latest/25/ga/windows/x64/jdk/hotspot/normal/eclipse'
+};
+
+async function ensureJava(major = 21) {
+  const found = getBundledJava(major);
   if (found) return found;
-  // Baixa Microsoft OpenJDK 21 (~190MB) uma única vez
+  const url = JDK_URLS[major];
+  if (!url) throw new Error(`Java ${major} sem download automático. Instale manual e aponte em Config.`);
+  // Baixa JDK uma única vez
   const log = (m) => win?.webContents.send('launch-log', m);
-  const dir = path.join(userData(), '.jdk21');
+  const dir = path.join(userData(), `.jdk${major}`);
   const javaExe = path.join(dir, 'bin', 'javaw.exe');
   if (fs.existsSync(javaExe)) return javaExe;
-  log('Java 21 não encontrado. Baixando (~190MB, só na 1ª vez)...');
-  const zip = path.join(userData(), '.cache', 'msjdk21.zip');
+  log(`Java ${major} não encontrado. Baixando (só na 1ª vez)...`);
+  const zip = path.join(userData(), '.cache', `jdk${major}.zip`);
   fs.mkdirSync(path.dirname(zip), { recursive: true });
-  const r = await fetch('https://aka.ms/download-jdk/microsoft-jdk-21-windows-x64.zip');
+  const r = await fetch(url);
   if (!r.ok) throw new Error('Falha ao baixar Java: ' + r.status);
   fs.writeFileSync(zip, Buffer.from(await r.arrayBuffer()));
   log('Extraindo Java...');
@@ -118,7 +135,7 @@ async function ensureJava() {
   fs.renameSync(path.join(tmp, inner.name), dir);
   fs.rmSync(zip, { force: true });
   if (!fs.existsSync(javaExe)) throw new Error('Java extraído mas javaw.exe não achado');
-  log('Java 21 pronto ✓');
+  log(`Java ${major} pronto ✓`);
   return javaExe;
 }
 
@@ -129,7 +146,7 @@ function getSettings() {
     javaPath: getBundledJava(), // usa JDK local baixado (.jdk21)
     resolution: { width: 854, height: 480 },
     gameDir: path.join(userData(), '.minecraft'),
-    version: '1.21',
+    version: '26.3',
     loader: 'fabric', // vanilla | fabric | forge | optifine
     overlay: true, // copia obsidian-overlay.jar p/ mods/ automaticamente
     displayMode: 'window', // window | exclusive | borderless
@@ -309,15 +326,27 @@ ipcMain.handle('launch', async (_, opts = {}) => {
     if ((out.match(/\n/g) || []).length >= 1) {
       win?.webContents.send('launch-log', 'Dica: 2 GPUs detectadas (notebook?). Se falhar, force o javaw.exe na GPU dedicada em Configurações do Windows > Tela > Gráficos.');
     }
-  } catch {}  let javaPath = settings.javaPath && fs.existsSync(settings.javaPath) ? settings.javaPath : '';
-  if (!javaPath) {
-    win?.webContents.send('launch-log', 'Procurando Java 21...');
-    javaPath = await ensureJava();
-    if (javaPath && javaPath !== settings.javaPath) {
-      saveJson(settingsPath(), { ...getSettings(), javaPath });
-    }
+  } catch {}
+  // Java certo p/ a versão (1.21.x=21, 26.x=25)
+  const javaMajor = await getRequiredJava(settings.version);
+  win?.webContents.send('launch-log', `Java ${javaMajor} requisitado p/ ${settings.version}`);
+  const probeMajor = (p) => {
+    try {
+      const out = execFileSync(`"${p}"`, ['-version'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 15000 });
+      const m = String(out + '').match(/version "(\d+)/);
+      return m ? +m[1] : null;
+    } catch { return null; }
+  };
+  let javaPath = '';
+  if (settings.javaPath && fs.existsSync(settings.javaPath) && probeMajor(settings.javaPath) === javaMajor) {
+    javaPath = settings.javaPath;
   }
-  if (!javaPath) throw new Error('Java 21 não encontrado. Instale ou aponte o caminho em Config.');
+  if (!javaPath) {
+    win?.webContents.send('launch-log', 'Procurando Java...');
+    javaPath = await ensureJava(javaMajor);
+    if (javaPath) saveJson(settingsPath(), { ...getSettings(), javaPath, javaMajor });
+  }
+  if (!javaPath) throw new Error(`Java ${javaMajor} não encontrado. Instale ou aponte o caminho em Config.`);
   launchOpts.javaPath = javaPath;
   await applySoftwareGL(javaPath, !!settings.softwareGL);
   // Separa mods por loader/versão: mistura (Fabric+Forge+OptiFine) crasha o jogo
