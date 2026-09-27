@@ -27,6 +27,7 @@ async function init() {
   try { setUser(await window.api.getAccount()); } catch {}
   try { await refreshInstalled(); } catch {}
   try { await refreshContent('shader'); await refreshContent('resourcepack'); await refreshContent('modpack'); } catch {}
+  try { await refreshSkins(); } catch {}
   paintCtx();
 }
 $('btnSave').onclick = async () => {
@@ -134,6 +135,48 @@ $('btnCrash').onclick = async () => {
   $('log').textContent += `\n--- ${c.file || 'crash'} ---\n${c.head}\n`;
   $('log').scrollTop = 1e9;
 };
+const _skinImgs = [];
+function drawSkinPreview(canvas, url) {
+  const img = new Image();
+  _skinImgs.push(img);
+  if (_skinImgs.length > 40) _skinImgs.splice(0, _skinImgs.length - 40);
+  img.onload = () => {
+    canvas.width = 64; canvas.height = 128;
+    const g = canvas.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    g.clearRect(0, 0, 64, 128);
+    const R = (sx, sy, sw, sh, dx, dy, dw, dh) => { try { g.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh); } catch {} };
+    R(8, 8, 8, 8, 16, 0, 32, 32);    // cabeca
+    R(20, 20, 8, 12, 16, 32, 32, 48); // tronco
+    R(44, 20, 4, 12, 0, 32, 16, 48);  // braco dir
+    R(36, 52, 4, 12, 48, 32, 16, 48); // braco esq
+    R(4, 20, 4, 12, 16, 80, 16, 48);  // perna dir
+    R(20, 52, 4, 12, 32, 80, 16, 48); // perna esq
+  };
+  img.src = url;
+}
+async function refreshSkins() {
+  const box = $('skins');
+  if (!box) return;
+  box.innerHTML = '<span class="muted">Carregando...</span>';
+  try {
+    const { skins, selected } = await window.api.skinList();
+    box.innerHTML = skins.map(s => `<div class="skin-card${selected === s.file ? ' sel' : ''}"><canvas width="64" height="128"></canvas><b>${s.name}</b>${s.preset ? '<span class="muted">preset</span>' : ''}${selected === s.file ? '<span class="chip">em uso</span>' : ''}<div class="login-row"><button data-use="${s.file}" class="primary">Usar</button>${s.preset ? '' : `<button data-delskin="${s.file}" class="ghost">Excluir</button>`}</div></div>`).join('') || '<span class="muted">Sem skins.</span>';
+    box.querySelectorAll('canvas').forEach((c, i) => drawSkinPreview(c, skins[i].url));
+    box.querySelectorAll('[data-use]').forEach(b => b.onclick = async () => {
+      b.disabled = true; $('skinMsg').textContent = 'Aplicando...';
+      try { const r = await window.api.skinApply(b.dataset.use, $('skinVariant').value); $('skinMsg').textContent = r.msg; refreshSkins(); }
+      catch (e) { $('skinMsg').textContent = 'Erro: ' + e.message; }
+      b.disabled = false;
+    });
+    box.querySelectorAll('[data-delskin]').forEach(b => b.onclick = async () => { await window.api.skinDelete(b.dataset.delskin); refreshSkins(); });
+  } catch (e) { box.innerHTML = 'Erro: ' + e.message; }
+}
+$('btnSkinImport').onclick = async () => {
+  try { const r = await window.api.skinImport(); if (r) refreshSkins(); }
+  catch (e) { $('skinMsg').textContent = 'Erro: ' + e.message; }
+};
+$('btnSkinsRefresh').onclick = refreshSkins;
 $('btnUpdate').onclick = async () => { await window.api.checkUpdate(); };
 window.api.onLog(v => { $('log').textContent += v + '\n'; $('log').scrollTop = 1e9; });
 window.api.onProgress(v => {

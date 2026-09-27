@@ -47,5 +47,10 @@ button.ghost { background:transparent; border:1px solid var(--line); font-size:1
 .mod:hover { border-color:var(--acc3); box-shadow:0 0 12px #7c3aed44; }
 .chip { display:inline-block; background:linear-gradient(135deg,#2a1650,#4c1d95); border:1px solid var(--acc2); color:#d8b4fe; font-size:11px; padding:2px 8px; border-radius:99px; margin:0 4px; vertical-align:middle; }
 .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.gallery { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin-top:12px; max-height:460px; overflow:auto; padding-right:4px; }
+.skin-card { background:#120a24; border:1px solid var(--line); border-radius:12px; padding:10px; display:flex; flex-direction:column; gap:6px; align-items:center; text-align:center; }
+.skin-card.sel { border-color:var(--acc3); box-shadow:0 0 14px #7c3aed55; }
+.skin-card canvas { width:64px; height:128px; image-rendering:pixelated; background:repeating-conic-gradient(#1c1233 0 25%, #120a24 0 50%) 0 0/16px 16px; border-radius:8px; }
+.skin-card b { font-size:13px; word-break:break-all; }
 .grid2 label { display:flex; flex-direction:column; gap:6px; font-size:13px; }
 .check { display:flex; gap:8px; align-items:center; margin:12px 0; }

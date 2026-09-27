@@ -1,0 +1,35 @@
+const { contextBridge } = require('electron');
+contextBridge.exposeInMainWorld('api', {
+  getSettings: async () => ({ ramMin: '2G', ramMax: '4G', javaPath: '', gameDir: 'C:\\jogo', resolution: { width: 854, height: 480 }, version: '1.21.1', loader: 'fabric', overlay: true, displayMode: 'borderless', autoUpdate: true }),
+  saveSettings: async () => true,
+  getVersions: async () => ['1.21.1', '1.21', '1.20.4'],
+  login: async () => ({ name: 'Steve', type: 'microsoft' }),
+  offlineLogin: async (u) => ({ name: u, type: 'offline' }),
+  getAccount: async () => ({ name: 'Steve', type: 'offline' }),
+  logout: async () => true,
+  launch: async () => true,
+  searchModrinth: async () => ({ hits: [] }),
+  modDownload: async () => ({ file: 'x.jar', version: '1.0', skipped: false }),
+  contentDownload: async () => ({ file: 'x.zip', version: '1.0', skipped: false }),
+  modsList: async () => [],
+  contentList: async () => [],
+  modDelete: async () => true,
+  contentDelete: async () => true,
+  openModsFolder: async () => true,
+  openContentFolder: async () => true,
+  openGameDir: async () => true,
+  lastCrash: async () => ({ file: null, head: '' }),
+  skinList: async () => ({ skins: [
+    { name: 'obsidian', file: 'obsidian.png', preset: true, url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAAXNSR0IArs4c6QAAAcRJREFUeF5j1BIL+M8wgODaqw2MA2g9A+NoAIymgNEsMFoGDGQhNFoIjtYCo9Xg4G4H7FtshbeIcIo9RlERMujLgNEAgKYAcbdScEy/3NXNgMweMSngwJxchvBVHPAAWBn2g8EhZTLDiAkAXBl9NABGUiG468Q1cEJws9CCJ4ghnwIoqsOGgeYBbYQMhvAbDYDBEAsD6QaMFCAnrYkyPvDo6XWSUkm4wlq84wsrHwSjmBejtAOv+iX3PFDU52rcRFE/+YY6Se5DD2yqBwC6A9EtRHfwaACMpoBhnAVq1qqBc0BL8C14ThhRWWDEBwC26m1EpYDRAMASApSmgBc7u1DaARLuZdRtB/Cyi6FY8PnnK5IsoHU7YDQARlMAjbPAQHZMBsJukvL3QDiQ1naOBgCtQ3iwmz+aAgZ7DNHafaMpgNYhPNjNH00Bgz2GaO2+0RRA6xAe7OaPpoDBHkO0dt9oCqB1CA9280dTwGCPIVq7bzQF0DqEB7v5VE8BlK4voPb8P6EIGA0AQiFEqvxoCqBwic1oFqDyGiBCKXi0DCAUQqTKj5YBo2UAZesMqT39TSgFU70MoHR9wWgAUHn+fzQFEAgBANJijVDcaUthAAAAAElFTkSuQmCC' },
+    { name: 'creeper', file: 'creeper.png', preset: true, url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAAXNSR0IArs4c6QAAAaxJREFUeF7tmrFKA0EQhvfq62wUhHsEi0gghZUBbRSS2sbWN7ARAja+ga2NdQLaKMTKIhBM4SMcCNrYXa0QJLgn3rLsDjt6X6rAbXaGf779Z3O72dZZ58Mk/DyfL7KE4U2GABDAEsADUpoQJkgXoA3q3gcUnaLRIspFGWQh6j0AAb4IuBmMl5U+nAzN9++tIeDh6N5UVbUSIM9zs3u9Z1ojwG8LHQHaZIJv89clCOvdjRUQf56AoB72D36cdBOiQT8E0FCFlDn8IGD7pLDeDzxdll6UdEe9xvcL89HMmq93sdM4fnb6aI3vX+1b46fHd1751cWOLkA9wXrAesIIAAEsATygqQtggnQB2qDVqg/GA8szboeTuPuAzf6aFeBl+u4VQHofgAAQILwEUv4xSRHba32nSFA6JgJIK6x9fgjQXiHp/CBAWmHt80OA9gpJ5wcB0gprnx8CtFdIOj8IkFZY+/wQoL1C0vlBgLTC2uePTkDo/YLY5/+uAiCASyHf5xAQeMWGJRD5DpCLYDzApZDvczwADwi7Zxj7+NtFcHQPCL1fgACRz/8hwKHAJ7idh1AB8ntMAAAAAElFTkSuQmCC' },
+    { name: 'enderman', file: 'enderman.png', preset: true, url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAAXNSR0IArs4c6QAAAY5JREFUeF7tm8FKxDAQhmdB6Km3kkI9ePcBvPvk3n0A7x4sNPTWU0FQXGSxcU0ISUjHfnsqbJrM/vPlnynNnkTkQ+p+TjWX/1ocAWpmQEQgoGYC2AJ4ACZIFaAM+lzYGOM1aWttqonvuwwiwDcB0zSdM933vfy8PgwBz/dvcvd0cxHg9fFdHl5u5TAC/LXREeBIJriu6xmEpmkuQPwHAlLLmOr7q9bgPSiHAHvIQs0YfhHQtu3m2WBZlihKuq7zPlvM87yZzxjjHW+t3YwfhmEzfhzHqPhcsbML4AboLugGjAAQwBbAA3xVABOkClAGvX2Du0Vim6prTYRrSlGNRuk+wO0bEMDxCAiIVCAK78i5VQxHABVpKhgkBBQUV8XUEKAiTQWDhICC4qqYGgJUpKlgkBBQUFwVU0OAijQVDBICCoqrYmoIUJGmgkFCQG5xU88X5H7/H/p92QlAgMQTJhCQ+QgMWyCgAB4QQiT2e0wQE0w7Z5j79XeI4OwecOV/iFFrIIBzbjD1AAQEBBT4BIyERVCcmvMBAAAAAElFTkSuQmCC' },
+    { name: 'ninja', file: 'ninja.png', preset: true, url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAAXNSR0IArs4c6QAAAX5JREFUeF7tmrFuwjAQhp05kxeQIqbkaXiQrjxM1z5InyaZUCRYPGWmEkJVbdRYls352nxMSDHc6bv//nMSN9bam6n4cc41FcObBgAogBbAA2qaECbIFGAM6t4HWGtXLcI5l2Uh6j0AAA8FjON4r/QwDObn980oYPMAfmv0zSgAAMaYZVnuHNq2/ebx5xWQNcP+wY+rbkI08AOAhirUzOFJAV3Xec8H5nlOUsn7brf6fOF0vXr/97Hfr65/u1y89Z+Hg7f+eD4n5RfCLg4gTDAMGCYMABRAC+ABa1MAE2QKMAa9Ud33vecZ0zSV3QcYY0JTSgrw6n0AAFDA61ug5r2JeOyk/hbPTiAgAAQgqw6BAlSXRyA5FCAAWXUIFKC6PALJoQAByKpDoADV5RFIDgUIQFYdAgWoLo9AcihAALLqEMUVkHu+oPT7/xh9AMQIpV5HAZlHbGiBwmeAYgrGA2KEUq/jAXhA3jnD0q+/Ywou7gG55wsAUPj9PwqIEPgCj9FyUE2J47YAAAAASUVORK5CYII=' },
+    { name: 'minha-skin', file: 'minha.png', preset: false, url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAAXNSR0IArs4c6QAAAX5JREFUeF7tmrFuwjAQhp05kxeQIqbkaXiQrjxM1z5InyaZUCRYPGWmEkJVbdRYls352nxMSDHc6bv//nMSN9bam6n4cc41FcObBgAogBbAA2qaECbIFGAM6t4HWGtXLcI5l2Uh6j0AAA8FjON4r/QwDObn980oYPMAfmv0zSgAAMaYZVnuHNq2/ebx5xWQNcP+wY+rbkI08AOAhirUzOFJAV3Xec8H5nlOUsn7brf6fOF0vXr/97Hfr65/u1y89Z+Hg7f+eD4n5RfCLg4gTDAMGCYMABRAC+ABa1MAE2QKMAa9Ud33vecZ0zSV3QcYY0JTSgrw6n0AAFDA61ug5r2JeOyk/hbPTiAgAAQgqw6BAlSXRyA5FCAAWXUIFKC6PALJoQAByKpDoADV5RFIDgUIQFYdAgWoLo9AcihAALLqEMUVkHu+oPT7/xh9AMQIpV5HAZlHbGiBwmeAYgrGA2KEUq/jAXhA3jnD0q+/Ywou7gG55wsAUPj9PwqIEPgCj9FyUE2J47YAAAAASUVORK5CYII=' }
+  ], selected: 'obsidian.png' }),
+  skinImport: async () => null,
+  skinDelete: async () => true,
+  skinApply: async () => ({ msg: 'Skin aplicada ✓' }),
+  checkUpdate: async () => true,
+  installUpdate: async () => true,
+  onLog: () => {}, onProgress: () => {}, onUpdateStatus: () => {}, onUpdateReady: () => {}
+});

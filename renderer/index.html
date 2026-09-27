@@ -16,6 +16,7 @@
       <button class="nav" data-page="shaders">✨ Shaders</button>
       <button class="nav" data-page="packs">🎨 Texturas</button>
       <button class="nav" data-page="modpacks">📦 Modpacks</button>
+      <button class="nav" data-page="skins">🎭 Skins</button>
       <button class="nav" data-page="config">⚙ Config</button>
       <button class="nav" data-page="about">ⓘ Sobre</button>
     </nav>
@@ -145,6 +146,23 @@
         <div id="modpacks"></div>
       </div>
       <div class="card"><h2>Baixados (<span id="modpacksCount">0</span>)</h2><div id="modpacksInstalled"></div></div>
+    </section>
+
+    <section id="page-skins" class="page">
+      <div class="card">
+        <h2>Skins <span class="chip">64x64</span></h2>
+        <p class="muted">Conta Microsoft = aplica de verdade na conta. Offline = salva no launcher (vale onde o servidor aceita skin offline).</p>
+        <div class="login-row">
+          <select id="skinVariant" title="Modelo">
+            <option value="classic">Clássico (braço 4px)</option>
+            <option value="slim">Slim (braço 3px)</option>
+          </select>
+          <button id="btnSkinImport" class="primary">Importar PNG</button>
+          <button id="btnSkinsRefresh" class="ghost">Atualizar</button>
+        </div>
+        <div id="skinMsg" class="muted"></div>
+        <div id="skins" class="gallery"></div>
+      </div>
     </section>
 
     <section id="page-config" class="page">

@@ -35,6 +35,7 @@
       "renderer/**/*",
       "overlay-dist/**/*",
       "assets/icon.png",
+      "assets/skins/**/*",
       "node_modules/psl/**/*",
       "package.json",
       "!**/.jdk21/**"
