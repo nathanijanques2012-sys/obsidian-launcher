@@ -23,8 +23,13 @@ function saveJson(p, data) {
   fs.writeFileSync(p, JSON.stringify(data, null, 2));
 }
 
-function getBundledJava() {
-  const candidates = [
+async function fetchT(url, opts = {}, ms = 45000) {
+  // fetch com timeout p/ o JOGAR nunca travar mudo numa API lenta
+  const r = await fetch(url, { ...opts, signal: AbortSignal.timeout(ms) });
+  return r;
+}
+
+function getBundledJava() {  const candidates = [
     path.join(__dirname, '.jdk21', 'bin', 'javaw.exe'), // dev
     path.join(userData(), '.jdk21', 'bin', 'javaw.exe') // provisionado
   ];
@@ -254,7 +259,7 @@ ipcMain.handle('launch', async (_, opts = {}) => {
 
   // GPU: sem driver de vídeo real o GLFW não cria a janela (erro 0x10006)
   try {
-    const out = execSync('powershell.exe -NoProfile -Command "Get-CimInstance Win32_VideoController | ForEach-Object { $_.Name + \' | driver \' + $_.DriverVersion + \' | \' + $_.Status }"', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    const out = execSync('powershell.exe -NoProfile -Command "Get-CimInstance Win32_VideoController | ForEach-Object { $_.Name + \' | driver \' + $_.DriverVersion + \' | \' + $_.Status }"', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 15000 }).trim();
     for (const line of out.split('\n')) win?.webContents.send('launch-log', 'GPU: ' + line.trim());
     if (/basic display|padrão|standard vga|llvmpipe/i.test(out) || !out) {
       win?.webContents.send('launch-log', 'AVISO: sem driver de vídeo instalado! O jogo pode falhar (GLFW/OpenGL). Instale o driver NVIDIA/AMD/Intel.');
