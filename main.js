@@ -294,7 +294,8 @@ ipcMain.handle('launch', async (_, opts = {}) => {
     root: settings.gameDir,
     version: { number: settings.version, type: 'release' },
     memory: { max: settings.ramMax, min: settings.ramMin },
-    window: winOpt
+    window: winOpt,
+    overrides: { detached: true } // jogo sobrevive se fechar o launcher
   };
   // Java: config > provisionado > PATH; se nada, baixa Microsoft JDK 21
 
