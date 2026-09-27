@@ -251,7 +251,15 @@ ipcMain.handle('launch', async (_, opts = {}) => {
     window: winOpt
   };
   // Java: config > provisionado > PATH; se nada, baixa Microsoft JDK 21
-  let javaPath = settings.javaPath && fs.existsSync(settings.javaPath) ? settings.javaPath : '';
+
+  // GPU: sem driver de vídeo real o GLFW não cria a janela (erro 0x10006)
+  try {
+    const gpus = execSync('powershell.exe -NoProfile -Command "(Get-CimInstance Win32_VideoController).Name -join chr(10)"', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    win?.webContents.send('launch-log', 'GPU: ' + (gpus.split('\n')[0] || '?'));
+    if (/basic display|padrão|standard vga|llvmpipe/i.test(gpus) || !gpus) {
+      win?.webContents.send('launch-log', 'AVISO: sem driver de vídeo instalado! O jogo pode falhar (GLFW/OpenGL). Instale o driver NVIDIA/AMD/Intel.');
+    }
+  } catch {}  let javaPath = settings.javaPath && fs.existsSync(settings.javaPath) ? settings.javaPath : '';
   if (!javaPath) {
     win?.webContents.send('launch-log', 'Procurando Java 21...');
     javaPath = await ensureJava();
