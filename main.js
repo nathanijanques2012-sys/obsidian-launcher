@@ -655,17 +655,24 @@ ipcMain.handle('skin-delete', (_, file) => {
   return true;
 });
 ipcMain.handle('skin-apply', async (_, file, variant = 'classic') => {
+  variant = variant === 'slim' ? 'slim' : 'classic';
   const accounts = loadJson(accountsPath(), []);
   const acc = accounts[0];
   if (!acc) throw new Error('Faça login primeiro.');
-  // Localiza o arquivo (preset ou importado)
+  // Localiza o arquivo (importado ou preset)
   const base = path.basename(file);
   let src = path.join(getSkinsDir(), base);
   if (!fs.existsSync(src)) src = path.join(__dirname, 'assets', 'skins', base);
   if (!fs.existsSync(src)) throw new Error('Skin não encontrada.');
   saveJson(settingsPath(), { ...getSettings(), selectedSkin: base, skinVariant: variant });
-  if (acc.type !== 'microsoft') {
-    return { offline: true, msg: 'Skin salva no launcher. Conta offline: vale em servidores com suporte a skin offline (a skin oficial do servidor continua valendo nos premium).' };
+  if (acc.type === 'offline') {
+    // StraySkins: aplica skin offline dentro do jogo (loader Fabric)
+    if (getSettings().loader !== 'fabric') throw new Error('Skin offline precisa do loader Fabric. Troque no Jogar e aplique de novo.');
+    await ensureStraySkins(getSettings().gameDir, getSettings().version);
+    const dir = path.join(getSettings().gameDir, 'strayskins', 'skin');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.copyFileSync(src, path.join(dir, acc.profile.name + '.png'));
+    return { offline: true, msg: `Skin aplicada p/ ${acc.profile.name} ✓ Carrega sozinha ao entrar no mundo.` };
   }
   const token = acc.mclc && (acc.mclc.access_token || acc.mclc.accessToken);
   if (!token) throw new Error('Token inválido, faça login Microsoft de novo.');
@@ -678,46 +685,6 @@ ipcMain.handle('skin-apply', async (_, file, variant = 'classic') => {
   if (r.status === 401) throw new Error('Sessão expirada, faça login Microsoft de novo.');
   if (!r.ok) throw new Error('Mojang recusou a skin (' + r.status + '). Use PNG 64x64.');
   return { offline: false, msg: `Skin "${base}" aplicada na conta ${acc.profile?.name} ✓ (pode demorar p/ atualizar no jogo)` };
-});
-
-// ---------- Skins ----------
-function skinsUserDir() { const d = path.join(userData(), 'skins'); fs.mkdirSync(d, { recursive: true }); return d; }
-function skinsBuiltinDir() { return path.join(__dirname, 'assets', 'skins'); }
-function pngSize(p) {
-  try {
-    const b = fs.readFileSync(p);
-    if (b.length < 24 || b.readUInt32BE(0) !== 0x89504E47) return null;
-    return { w: b.readUInt32BE(16), h: b.readUInt32BE(20) };
-  } catch { return null; }
-}
-
-ipcMain.handle('skins-library', () => {
-  const items = [];
-  const push = (dir, builtin) => {
-    if (!fs.existsSync(dir)) return;
-    for (const f of fs.readdirSync(dir).filter(f => f.toLowerCase().endsWith('.png'))) {
-      const full = path.join(dir, f);
-      const sz = pngSize(full);
-      if (!sz) continue;
-      items.push({ name: path.basename(f, '.png'), builtin, size: `${sz.w}x${sz.h}`, data: 'data:image/png;base64,' + fs.readFileSync(full).toString('base64') });
-    }
-  };
-  push(skinsBuiltinDir(), true);
-  push(skinsUserDir(), false);
-  return { items, current: getSettings().skin || null };
-});
-
-ipcMain.handle('skin-import', async () => {
-  const r = await dialog.showOpenDialog(win, { properties: ['openFile'], filters: [{ name: 'Skin PNG', extensions: ['png'] }] });
-  if (r.canceled || !r.filePaths[0]) return null;
-  const src = r.filePaths[0];
-  const sz = pngSize(src);
-  if (!sz || !((sz.w === 64 && sz.h === 64) || (sz.w === 64 && sz.h === 32) || (sz.w % 64 === 0 && sz.h === sz.w))) {
-    throw new Error(`PNG ${sz ? sz.w + 'x' + sz.h : 'inválido'}: use skin 64x64 (ou 64x32 / múltiplos de 64)`);
-  }
-  const name = (path.basename(src, '.png').replace(/[^\w\- ]+/g, '').trim().slice(0, 24) || 'custom');
-  fs.copyFileSync(src, path.join(skinsUserDir(), name + '.png'));
-  return { name };
 });
 
 async function ensureStraySkins(root, mcVersion) {
@@ -743,35 +710,6 @@ async function ensureStraySkins(root, mcVersion) {
   log('StraySkins instalado ✓');
   return dest;
 }
-
-ipcMain.handle('skin-apply', async (_, name, model) => {
-  model = model === 'slim' ? 'slim' : 'classic';
-  const bf = path.join(skinsBuiltinDir(), name + '.png');
-  const uf = path.join(skinsUserDir(), name + '.png');
-  const src = fs.existsSync(uf) ? uf : (fs.existsSync(bf) ? bf : null);
-  if (!src) throw new Error('Skin não encontrada');
-  const accounts = loadJson(accountsPath(), []);
-  const acc = accounts[0];
-  if (!acc) throw new Error('Faça login primeiro.');
-  saveJson(settingsPath(), { ...getSettings(), skin: { name, model } });
-  if (acc.type === 'offline') {
-    if (getSettings().loader !== 'fabric') throw new Error('Skin offline precisa do loader Fabric. Troque no Jogar e aplique de novo.');
-    await ensureStraySkins(getSettings().gameDir, getSettings().version);
-    const dir = path.join(getSettings().gameDir, 'strayskins', 'skin');
-    fs.mkdirSync(dir, { recursive: true });
-    fs.copyFileSync(src, path.join(dir, acc.profile.name + '.png'));
-    return { mode: 'offline', msg: `Skin aplicada p/ ${acc.profile.name} ✓ Carrega sozinha ao entrar no mundo (ou /strayskins no jogo).` };
-  }
-  const token = acc.mclc && acc.mclc.access_token;
-  if (!token) throw new Error('Sessão Microsoft expirada. Faça login de novo.');
-  const fd = new FormData();
-  fd.append('variant', model);
-  fd.append('file', new Blob([fs.readFileSync(src)], { type: 'image/png' }), 'skin.png');
-  const r = await fetch('https://api.minecraftservices.com/minecraft/profile/skins', { method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: fd });
-  if (r.status === 401 || r.status === 403) throw new Error('Sessão expirada. Faça login Microsoft de novo.');
-  if (!r.ok) throw new Error('Mojang recusou (HTTP ' + r.status + ')');
-  return { mode: 'online', msg: 'Skin enviada p/ sua conta Microsoft ✓ Vale em qualquer servidor/launcher.' };
-});
 
 app.whenReady().then(() => { createWindow(); setupAutoUpdate(); });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
