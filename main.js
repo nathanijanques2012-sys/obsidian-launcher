@@ -396,6 +396,47 @@ function jarKind(p) {
   } catch { return { fabric: false, forge: false }; }
 }
 
+function cmpMc(a, b) {
+  // compara versões MC numericamente ignorando sufixos (-pre etc)
+  const pa = String(a).split('-')[0].split('.').map(Number);
+  const pb = String(b).split('-')[0].split('.').map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] || 0) - (pb[i] || 0);
+    if (d !== 0) return d < 0 ? -1 : 1;
+  }
+  return 0;
+}
+function satisfiesMc(range, mc) {
+  // AND por espaço/vírgula, OR por ||. Operadores: >= <= > < = ~ ^, x, *
+  const orGroups = String(range).split('||').map(s => s.trim()).filter(Boolean);
+  if (!orGroups.length) return true;
+  return orGroups.some(group => {
+    const comps = group.split(/[\s,]+/).filter(Boolean);
+    if (!comps.length) return true;
+    return comps.every(c => {
+      if (c === '*' || c === 'x') return true;
+      const m = c.match(/^(>=|<=|>|<|=|~|\^)?(\d+(?:\.\d+)*(?:\.x)?)$/);
+      if (!m) return true; // formato desconhecido: mantém
+      const [, op = '=', ver] = m;
+      const clean = ver.replace(/\.x$/, '');
+      const parts = clean.split('.').length;
+      if (op === '~') { // ~1.21 / ~1.21.1 => >=clean <major.(minor+1)
+        const cap = `${clean.split('.')[0]}.${(+(clean.split('.')[1] || 0)) + 1}`;
+        return cmpMc(mc, clean) >= 0 && cmpMc(mc, cap) < 0;
+      }
+      if (op === '^') return cmpMc(mc, clean) >= 0 && cmpMc(mc, `${+clean.split('.')[0] + 1}`) < 0;
+      if (!op || op === '=') {
+        if (ver.endsWith('.x') || parts < 3) {
+          const prefix = ver.replace(/\.x$/, '');
+          return mc === prefix || mc.startsWith(prefix + '.');
+        }
+        return cmpMc(mc, clean) === 0;
+      }
+      const d = cmpMc(mc, clean);
+      return op === '>=' ? d >= 0 : op === '<=' ? d <= 0 : op === '>' ? d > 0 : d < 0;
+    });
+  });
+}
 function fabricMcOk(p, mc) {
   // Lê depends.minecraft do fabric.mod.json; sem info, mantém
   try {
@@ -404,9 +445,7 @@ function fabricMcOk(p, mc) {
     let dep = j.depends && j.depends.minecraft;
     if (!dep) return true;
     if (Array.isArray(dep)) dep = dep.join(' ');
-    const tokens = String(dep).match(/\d+(\.\d+){1,2}/g) || [];
-    if (!tokens.length) return true;
-    return tokens.some(t => mc === t || mc.startsWith(t + '.') || t.startsWith(mc + '.'));
+    return satisfiesMc(dep, mc);
   } catch { return true; }
 }
 
@@ -751,6 +790,13 @@ async function ensureStraySkins(root, mcVersion) {
   const log = (m) => win?.webContents.send('launch-log', m);
   const mods = path.join(root, 'mods');
   fs.mkdirSync(mods, { recursive: true });
+  for (const f of fs.readdirSync(mods)) {
+    // Remove build velha p/ outro MC (ex: 1.21.1 no jogo 1.21 crasha o Fabric)
+    if (/^strayskins-.*\.jar$/.test(f) && !fabricMcOk(path.join(mods, f), mcVersion)) {
+      fs.unlinkSync(path.join(mods, f));
+      log('StraySkins incompatível removido, baixando certo...');
+    }
+  }
   for (const f of fs.readdirSync(mods)) {
     if (/^strayskins-.*\.jar$/.test(f)) { log('StraySkins ok ✓'); return path.join(mods, f); }
   }
