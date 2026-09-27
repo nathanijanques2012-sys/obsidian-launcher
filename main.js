@@ -254,10 +254,13 @@ ipcMain.handle('launch', async (_, opts = {}) => {
 
   // GPU: sem driver de vídeo real o GLFW não cria a janela (erro 0x10006)
   try {
-    const gpus = execSync('powershell.exe -NoProfile -Command "(Get-CimInstance Win32_VideoController).Name -join chr(10)"', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
-    win?.webContents.send('launch-log', 'GPU: ' + (gpus.split('\n')[0] || '?'));
-    if (/basic display|padrão|standard vga|llvmpipe/i.test(gpus) || !gpus) {
+    const out = execSync('powershell.exe -NoProfile -Command "Get-CimInstance Win32_VideoController | ForEach-Object { $_.Name + \' | driver \' + $_.DriverVersion + \' | \' + $_.Status }"', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    for (const line of out.split('\n')) win?.webContents.send('launch-log', 'GPU: ' + line.trim());
+    if (/basic display|padrão|standard vga|llvmpipe/i.test(out) || !out) {
       win?.webContents.send('launch-log', 'AVISO: sem driver de vídeo instalado! O jogo pode falhar (GLFW/OpenGL). Instale o driver NVIDIA/AMD/Intel.');
+    }
+    if ((out.match(/\n/g) || []).length >= 1) {
+      win?.webContents.send('launch-log', 'Dica: 2 GPUs detectadas (notebook?). Se falhar, force o javaw.exe na GPU dedicada em Configurações do Windows > Tela > Gráficos.');
     }
   } catch {}  let javaPath = settings.javaPath && fs.existsSync(settings.javaPath) ? settings.javaPath : '';
   if (!javaPath) {
