@@ -37,6 +37,8 @@ button:hover { filter:brightness(1.2); }
 button.primary { background:linear-gradient(180deg,#8b5cf6,#6d28d9); box-shadow:0 2px 12px #7c3aed66; }
 button.play { background:linear-gradient(180deg,#a855f7,#6d28d9); font-size:20px; font-weight:800; padding:12px 34px; letter-spacing:1px; box-shadow:0 6px 0 #3b1470, 0 10px 24px #7c3aed55; }
 button.play:active { transform:translateY(3px); box-shadow:0 2px 0 #3b1470; }
+button.stop { background:linear-gradient(180deg,#ef4444,#b91c1c); font-size:20px; font-weight:800; padding:12px 34px; letter-spacing:1px; box-shadow:0 6px 0 #7f1d1d, 0 10px 24px #ef444488; }
+button.stop:active { transform:translateY(3px); box-shadow:0 2px 0 #7f1d1d; }
 button.ghost { background:transparent; border:1px solid var(--line); font-size:12px; }
 .bar { height:10px; background:#120a24; border:1px solid var(--line); border-radius:99px; overflow:hidden; margin:8px 0; }
 #barFill { height:100%; width:0%; background:linear-gradient(90deg,#c084fc,var(--acc2),#4c1d95); transition:width .2s; }

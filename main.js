@@ -293,6 +293,7 @@ ipcMain.handle('launch', async (_, opts = {}) => {
   launcher.on('debug', (e) => win?.webContents.send('launch-log', '[debug] ' + e));
   launcher.on('data', (e) => win?.webContents.send('launch-log', e));
   launcher.on('progress', (e) => win?.webContents.send('launch-progress', e));
+  launcher.on('close', (code) => win?.webContents.send('game-closed', code));
 
   // Tela: janela | exclusiva (--fullscreen, não aparece em lives) | borderless (enche a tela e aparece em live)
   let winOpt = { width: settings.resolution.width, height: settings.resolution.height };
@@ -374,7 +375,29 @@ ipcMain.handle('launch', async (_, opts = {}) => {
   win?.minimize(); // tira o launcher da frente p/ o jogo ganhar foco/mouse
   win?.webContents.send('launch-log', `Iniciando Minecraft ${settings.version} (${settings.loader})...`);
   await launcher.launch(launchOpts);
+  win?.webContents.send('game-started');
   return true;
+});
+
+ipcMain.handle('stop-game', () => {
+  // Mata só o javaw do NOSSO gameDir (não mexe em outros javas)
+  const root = getSettings().gameDir.toLowerCase();
+  let killed = 0;
+  try {
+    const ps = path.join(userData(), '.cache', 'stop-game.ps1');
+    fs.mkdirSync(path.dirname(ps), { recursive: true });
+    fs.writeFileSync(ps, `Get-CimInstance Win32_Process -Filter "Name='javaw.exe'" | Select-Object ProcessId,CommandLine | ConvertTo-Json`);
+    const out = execFileSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ps], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 15000 });
+    const list = JSON.parse(out || '[]');
+    for (const p of Array.isArray(list) ? list : [list]) {
+      if (p && p.CommandLine && String(p.CommandLine).toLowerCase().includes(root)) {
+        try { process.kill(p.ProcessId, 'SIGKILL'); killed++; } catch {}
+      }
+    }
+  } catch {}
+  win?.webContents.send('launch-log', killed ? `Jogo parado (${killed}) ✓` : 'Nenhum jogo rodando.');
+  win?.webContents.send('game-closed', 'stopped');
+  return { killed };
 });
 
 async function ensureFabricApi(root, mcVersion) {

@@ -53,12 +53,25 @@ $('btnOffline').onclick = async () => {
   catch (e) { alert('Offline falhou: ' + e.message); }
 };
 $('btnLogout').onclick = async () => { await window.api.logout(); setUser(null); };
+function setPlaying(on) {
+  $('btnPlay').style.display = on ? 'none' : '';
+  $('btnStop').style.display = on ? '' : 'none';
+  $('barFill').style.width = on ? '100%' : '5%';
+}
 $('btnPlay').onclick = async () => {
   $('log').textContent += 'Iniciando...\n';
   $('barFill').style.width = '5%';
-  try { await window.api.launch({ version: $('version').value, loader: $('loader').value }); $('barFill').style.width = '100%'; }
-  catch (e) { $('log').textContent += 'ERRO: ' + e.message + '\n'; }
+  try { await window.api.launch({ version: $('version').value, loader: $('loader').value }); setPlaying(true); }
+  catch (e) { $('log').textContent += 'ERRO: ' + e.message + '\n'; setPlaying(false); }
 };
+$('btnStop').onclick = async () => {
+  $('btnStop').disabled = true;
+  try { await window.api.stopGame(); } catch (e) { $('log').textContent += 'ERRO: ' + e.message + '\n'; }
+  setPlaying(false);
+  $('btnStop').disabled = false;
+};
+window.api.onGameStarted(() => setPlaying(true));
+window.api.onGameClosed(() => setPlaying(false));
 function ctxLabel() { return `${$('loader').value} • ${$('version').value}`; }
 function paintCtx() { for (const id of ['modsCtx', 'shadersCtx', 'packsCtx', 'modpacksCtx']) { const el = $(id); if (el) el.textContent = ctxLabel(); } }
 $('version').addEventListener?.('change', paintCtx);
