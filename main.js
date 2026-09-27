@@ -372,6 +372,7 @@ ipcMain.handle('launch', async (_, opts = {}) => {
   }
 
   win?.minimize(); // tira o launcher da frente p/ o jogo ganhar foco/mouse
+  win?.webContents.send('launch-log', `Iniciando Minecraft ${settings.version} (${settings.loader})...`);
   await launcher.launch(launchOpts);
   return true;
 });
