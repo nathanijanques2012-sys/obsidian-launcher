@@ -55,7 +55,33 @@ async function downloadFile(url, dest, label = 'arquivo') {
 
 const MESA_VER = '26.2.3';
 const MESA_URL = `https://github.com/pal1000/mesa-dist-win/releases/download/${MESA_VER}/mesa3d-${MESA_VER}-release-msvc.7z`;
+const MESA_RAW = 'https://raw.githubusercontent.com/nathanijanques2012-sys/obsidian-launcher/main/redist/mesa';
 const MESA_DLLS = ['opengl32.dll', 'libgallium_wgl.dll'];
+const MESA_PARTS = 3;
+
+async function fetchMesaPredbuilt(mesaDir) {
+  // DLLs prontas, sem extração (p/ Windows sem tar.exe)
+  const log = (m) => win?.webContents.send('launch-log', m);
+  const x64 = path.join(mesaDir, 'x64');
+  fs.mkdirSync(x64, { recursive: true });
+  log('Baixando Mesa3D (~60MB, só na 1ª vez)...');
+  await downloadFile(`${MESA_RAW}/opengl32.dll`, path.join(x64, 'opengl32.dll'), 'Mesa3D (1/4)');
+  for (let i = 0; i < MESA_PARTS; i++) {
+    await downloadFile(`${MESA_RAW}/libgallium_wgl.dll.part${i}`, path.join(x64, `libgallium_wgl.dll.part${i}`), `Mesa3D (${i + 2}/4)`);
+  }
+  const out = fs.openSync(path.join(x64, 'libgallium_wgl.dll'), 'w');
+  try {
+    for (let i = 0; i < MESA_PARTS; i++) {
+      const p = path.join(x64, `libgallium_wgl.dll.part${i}`);
+      const b = fs.readFileSync(p);
+      fs.writeSync(out, b, 0, b.length);
+      fs.unlinkSync(p);
+    }
+  } finally { fs.closeSync(out); }
+  const got = fs.statSync(path.join(x64, 'libgallium_wgl.dll')).size;
+  if (got !== 61868544) { fs.rmSync(path.join(x64, 'libgallium_wgl.dll'), { force: true }); throw new Error(`Mesa corrompido (${got} bytes). Tentando de novo...`); }
+  if (!MESA_DLLS.every(f => fs.existsSync(path.join(x64, f)))) throw new Error('Mesa incompleto');
+}
 
 async function applySoftwareGL(javaExe, on) {
   // Mesa llvmpipe ao lado do javaw.exe = OpenGL por software (emergência sem driver).
@@ -74,19 +100,24 @@ async function applySoftwareGL(javaExe, on) {
   const mesaDir = path.join(userData(), '.mesa', MESA_VER);
   const have = MESA_DLLS.every(f => fs.existsSync(path.join(mesaDir, 'x64', f)));
   if (!have) {
-    log('Baixando Mesa3D (~68MB, só na 1ª vez)...');
-    const zip = path.join(userData(), '.cache', 'mesa.7z');
-    await downloadFile(MESA_URL, zip, 'Mesa3D');
-    log('Extraindo Mesa3D...');
-    fs.rmSync(mesaDir, { recursive: true, force: true });
-    fs.mkdirSync(mesaDir, { recursive: true });
     try {
-      execFileSync('tar.exe', ['-xf', zip, '-C', mesaDir], { stdio: 'ignore', timeout: 300000 });
-    } catch {
-      throw new Error('Falha ao extrair Mesa (tar.exe ausente? Windows 10+ necessário).');
+      await fetchMesaPredbuilt(mesaDir);
+    } catch (e) {
+      // Fallback: pacote .7z oficial + tar
+      log('Método direto falhou, tentando pacote oficial...');
+      const zip = path.join(userData(), '.cache', 'mesa.7z');
+      await downloadFile(MESA_URL, zip, 'Mesa3D');
+      log('Extraindo Mesa3D...');
+      fs.rmSync(mesaDir, { recursive: true, force: true });
+      fs.mkdirSync(mesaDir, { recursive: true });
+      try {
+        execFileSync('tar.exe', ['-xf', zip, '-C', mesaDir], { stdio: 'ignore', timeout: 300000 });
+      } catch {
+        throw new Error('Falha ao extrair Mesa (tar.exe ausente? Windows 10+ necessário).');
+      }
+      fs.rmSync(zip, { force: true });
+      if (!MESA_DLLS.every(f => fs.existsSync(path.join(mesaDir, 'x64', f)))) throw new Error('Mesa extraído incompleto');
     }
-    fs.rmSync(zip, { force: true });
-    if (!MESA_DLLS.every(f => fs.existsSync(path.join(mesaDir, 'x64', f)))) throw new Error('Mesa extraído incompleto');
   }
   for (const f of MESA_DLLS) fs.copyFileSync(path.join(mesaDir, 'x64', f), path.join(binDir, f));
   fs.mkdirSync(path.dirname(flag), { recursive: true });
