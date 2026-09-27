@@ -29,6 +29,46 @@ async function fetchT(url, opts = {}, ms = 45000) {
   return r;
 }
 
+const MESA_VER = '26.2.3';
+const MESA_URL = `https://github.com/pal1000/mesa-dist-win/releases/download/${MESA_VER}/mesa3d-${MESA_VER}-release-msvc.7z`;
+const MESA_DLLS = ['opengl32.dll', 'libgallium_wgl.dll'];
+
+async function applySoftwareGL(javaExe, on) {
+  // Mesa llvmpipe ao lado do javaw.exe = OpenGL por software (emergência sem driver).
+  // JDK original NÃO tem esses arquivos, então é seguro colocar/remover.
+  const log = (m) => win?.webContents.send('launch-log', m);
+  const binDir = path.dirname(javaExe);
+  const flag = path.join(userData(), '.mesa', 'active');
+  const wasOn = (() => { try { return fs.readFileSync(flag, 'utf8') === binDir; } catch { return false; } })();
+  if (on === wasOn && (!on || MESA_DLLS.every(f => fs.existsSync(path.join(binDir, f))))) return;
+  if (!on) {
+    for (const f of MESA_DLLS) { try { fs.unlinkSync(path.join(binDir, f)); } catch {} }
+    try { fs.unlinkSync(flag); } catch {}
+    log('Renderização por hardware restaurada ✓');
+    return;
+  }
+  const mesaDir = path.join(userData(), '.mesa', MESA_VER);
+  const have = MESA_DLLS.every(f => fs.existsSync(path.join(mesaDir, 'x64', f)));
+  if (!have) {
+    log('Baixando Mesa3D (~68MB, só na 1ª vez)...');
+    const zip = path.join(userData(), '.cache', 'mesa.7z');
+    fs.mkdirSync(path.dirname(zip), { recursive: true });
+    const dl = await fetch(MESA_URL);
+    if (!dl.ok) throw new Error('Download Mesa falhou: ' + dl.status);
+    fs.writeFileSync(zip, Buffer.from(await dl.arrayBuffer()));
+    log('Extraindo Mesa3D...');
+    fs.rmSync(mesaDir, { recursive: true, force: true });
+    fs.mkdirSync(mesaDir, { recursive: true });
+    execFileSync('tar.exe', ['-xf', zip, '-C', mesaDir], { stdio: 'ignore' });
+    fs.rmSync(zip, { force: true });
+    if (!MESA_DLLS.every(f => fs.existsSync(path.join(mesaDir, 'x64', f)))) throw new Error('Mesa extraído incompleto');
+  }
+  for (const f of MESA_DLLS) fs.copyFileSync(path.join(mesaDir, 'x64', f), path.join(binDir, f));
+  fs.mkdirSync(path.dirname(flag), { recursive: true });
+  fs.writeFileSync(flag, binDir);
+  log('Modo compatibilidade ATIVO (software, FPS menor) ✓');
+}
+
 function getBundledJava() {  const candidates = [
     path.join(__dirname, '.jdk21', 'bin', 'javaw.exe'), // dev
     path.join(userData(), '.jdk21', 'bin', 'javaw.exe') // provisionado
@@ -93,6 +133,7 @@ function getSettings() {
     loader: 'fabric', // vanilla | fabric | forge | optifine
     overlay: true, // copia obsidian-overlay.jar p/ mods/ automaticamente
     displayMode: 'window', // window | exclusive | borderless
+    softwareGL: false, // true = Mesa llvmpipe (sem placa de vídeo, FPS menor)
     autoUpdate: true
   };
   if (!base) return defaults;
@@ -277,6 +318,7 @@ ipcMain.handle('launch', async (_, opts = {}) => {
   }
   if (!javaPath) throw new Error('Java 21 não encontrado. Instale ou aponte o caminho em Config.');
   launchOpts.javaPath = javaPath;
+  await applySoftwareGL(javaPath, !!settings.softwareGL);
   // Separa mods por loader/versão: mistura (Fabric+Forge+OptiFine) crasha o jogo
   quarantineMods(settings.gameDir, settings.version, settings.loader);
   if (settings.loader === 'fabric') {
