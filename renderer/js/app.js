@@ -372,10 +372,12 @@ const btnPlay = document.getElementById('btnPlay');
 if (btnPlay) {
   btnPlay.onclick = async () => {
     if (!state.account) return toast.warning('Não logado', 'Faça login Microsoft ou offline primeiro');
-    
+    if (btnPlay.disabled) return; // sem duplo-clique (2 jogos colidem nos natives)
+    btnPlay.disabled = true;
+
     const logEl = document.getElementById('log');
     if (logEl) logEl.textContent += 'Iniciando...\n';
-    
+
     try {
       await API.launch({
         version: $('version').value,
@@ -386,6 +388,8 @@ if (btnPlay) {
       if (logEl) logEl.textContent += 'ERRO: ' + err.message + '\n';
       setPlaying(false);
       toast.error('Falha ao iniciar', err.message);
+    } finally {
+      btnPlay.disabled = false;
     }
   };
 }

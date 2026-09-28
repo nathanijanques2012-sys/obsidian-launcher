@@ -41,7 +41,7 @@ async function loadDashboardData() {
     
     pageState.account = account.status === 'fulfilled' ? account.value : null;
     pageState.versions = versions.status === 'fulfilled' ? versions.value : ['1.21', '1.20.4', '1.19.4'];
-    pageState.settings = settings.status === 'fulfilled' ? settings.value : getDefaultSettings();
+    pageState.settings = settings.status === 'fulfilled' ? settings.value : { ramMin: '2G', ramMax: '4G', javaPath: '', gameDir: '', resolution: { width: 854, height: 480 }, version: '26.3', loader: 'fabric', autoUpdate: true, overlay: true, displayMode: 'window', softwareGL: false };
     
     updateAccountUI(pageState.account);
     populateVersionSelect(pageState.versions);

@@ -341,7 +341,11 @@ ipcMain.handle('ms-login', async () => {
   return { name: profile.name, id: profile.id, type: 'microsoft' };
 });
 
+let launching = false;
 ipcMain.handle('launch', async (_, opts = {}) => {
+  if (launching) throw new Error('Jogo já iniciando, aguarde...');
+  launching = true;
+  try {
   const settings = { ...getSettings(), ...opts };
   const accounts = loadJson(accountsPath(), []);
   if (!accounts[0]) throw new Error('Faça login (Microsoft ou offline) primeiro.');
@@ -448,9 +452,27 @@ ipcMain.handle('launch', async (_, opts = {}) => {
 
   win?.minimize(); // tira o launcher da frente p/ o jogo ganhar foco/mouse
   win?.webContents.send('launch-log', `Iniciando Minecraft ${settings.version} (${settings.loader})...`);
-  await launcher.launch(launchOpts);
+  // Temp único por execução: 2 cliques rápidos extraíam natives/SDL no mesmo
+  // lugar e um deles carregava DLL pela metade (UnsatisfiedLinkError 1114)
+  const runTmp = path.join(userData(), '.run-tmp', String(Date.now()));
+  fs.mkdirSync(runTmp, { recursive: true });
+  launchOpts.customArgs = [`-Djava.io.tmpdir=${runTmp}`];
+  try {
+    const base = path.join(userData(), '.run-tmp');
+    for (const d of fs.readdirSync(base)) {
+      if (/^\d+$/.test(d) && Date.now() - +d > 86400000) fs.rmSync(path.join(base, d), { recursive: true, force: true });
+    }
+  } catch {}
+  try {
+    await launcher.launch(launchOpts);
+  } finally {
+    launching = false;
+  }
   win?.webContents.send('game-started');
   return true;
+  } finally {
+    launching = false;
+  }
 });
 
 ipcMain.handle('stop-game', () => {
