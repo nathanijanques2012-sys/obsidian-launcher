@@ -64,7 +64,7 @@ export async function apiCall(method, ...args) {
     const isMutation = ['launch', 'saveSettings', 'logout', 'offlineLogin', 'login', 
                         'modDownload', 'contentDownload', 'modDelete', 'contentDelete',
                         'friendAdd', 'friendDelete', 'inviteCreate', 'inviteAccept', 'friendSync',
-                        'skinImport', 'skinDelete', 'skinApply', 'checkUpdate', 'installUpdate',
+                        'skinImport', 'skinDelete', 'skinApply', 'checkUpdate', 'installUpdate', 'repairVersion',
                         'stopGame'].includes(method);
     
     if (!isMutation) {
@@ -212,6 +212,7 @@ export const API = {
   lastCrash: () => apiCall('lastCrash'),
   checkUpdate: () => apiCall('checkUpdate'),
   installUpdate: () => apiCall('installUpdate'),
+  repairVersion: () => apiCall('repairVersion'),
   
   // Skins
   skinList: () => apiCall('skinList'),

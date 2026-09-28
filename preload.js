@@ -35,6 +35,7 @@ contextBridge.exposeInMainWorld('api', {
   openModsFolder: () => ipcRenderer.invoke('open-mods-folder'),
   checkUpdate: () => ipcRenderer.invoke('check-update'),
   installUpdate: () => ipcRenderer.invoke('quit-and-install'),
+  repairVersion: () => ipcRenderer.invoke('repair-version'),
   skinsLibrary: () => ipcRenderer.invoke('skins-library'),
   skinImport: () => ipcRenderer.invoke('skin-import'),
   skinApply: (n, m) => ipcRenderer.invoke('skin-apply', n, m),

@@ -319,6 +319,22 @@ if (btnSave) {
   };
 }
 
+// Reparar arquivos da versão
+const btnRepair = document.getElementById('btnRepair');
+if (btnRepair) {
+  btnRepair.onclick = async () => {
+    btnRepair.disabled = true;
+    try {
+      await API.repairVersion();
+      toast.success('Reparo ok', 'Clique JOGAR para baixar tudo de novo');
+    } catch (err) {
+      toast.error('Erro no reparo', err.message);
+    } finally {
+      btnRepair.disabled = false;
+    }
+  };
+}
+
 // Login Microsoft
 const btnLogin = document.getElementById('btnLogin');
 if (btnLogin) {

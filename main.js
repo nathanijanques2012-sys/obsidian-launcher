@@ -3,6 +3,7 @@
 const { app, BrowserWindow, ipcMain, shell, screen, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { Client, Authenticator } = require('minecraft-launcher-core');
 const { autoUpdater } = require('electron-updater');
 const { execSync, execFileSync } = require('child_process');
@@ -367,6 +368,7 @@ ipcMain.handle('launch', async (_, opts = {}) => {
   const acc = accounts[0];
   const authorization = acc.type === 'offline' ? acc.auth : acc.mclc;
   if (!authorization) throw new Error('Conta inválida, faça login de novo.');
+  win?.webContents.send('launch-log', `[1/4] Conta: ${acc.profile?.name || acc.profile?.id} (${acc.type}) ✓`);
   const launcher = new Client();
   launcher.on('debug', (e) => win?.webContents.send('launch-log', '[debug] ' + e));
   launcher.on('data', (e) => win?.webContents.send('launch-log', e));
@@ -408,7 +410,7 @@ ipcMain.handle('launch', async (_, opts = {}) => {
   } catch {}
   // Java certo p/ a versão (1.21.x=21, 26.x=25)
   const javaMajor = await getRequiredJava(settings.version);
-  win?.webContents.send('launch-log', `Java ${javaMajor} requisitado p/ ${settings.version}`);
+  win?.webContents.send('launch-log', `[2/4] Java ${javaMajor} p/ ${settings.version}`);
   const probeMajor = (p) => {
     try {
       const out = execFileSync(`"${p}"`, ['-version'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 15000 });
@@ -429,6 +431,7 @@ ipcMain.handle('launch', async (_, opts = {}) => {
   launchOpts.javaPath = javaPath;
   await applySoftwareGL(javaPath, !!settings.softwareGL);
   // Separa mods por loader/versão: mistura (Fabric+Forge+OptiFine) crasha o jogo
+  win?.webContents.send('launch-log', '[3/4] Verificando mods...');
   quarantineMods(settings.gameDir, settings.version, settings.loader);
   if (opts.server && opts.server.host) {
     launchOpts.quickPlay = { type: 'multiplayer', identifier: `${opts.server.host}:${opts.server.port || 25565}` };
@@ -469,7 +472,7 @@ ipcMain.handle('launch', async (_, opts = {}) => {
   }
 
   win?.minimize(); // tira o launcher da frente p/ o jogo ganhar foco/mouse
-  win?.webContents.send('launch-log', `Iniciando Minecraft ${settings.version} (${settings.loader})...`);
+  win?.webContents.send('launch-log', `[4/4] Iniciando Minecraft ${settings.version} (${settings.loader})...`);
   // Temp único por execução: 2 cliques rápidos extraíam natives/SDL no mesmo
   // lugar e um deles carregava DLL pela metade (UnsatisfiedLinkError 1114)
   const runTmp = path.join(userData(), '.run-tmp', String(Date.now()));
@@ -884,6 +887,31 @@ async function installModpack(projectId, mcVersion) {
 
 ipcMain.handle('check-update', () => { setupAutoUpdate(true); return true; });
 ipcMain.handle('quit-and-install', () => { try { autoUpdater.quitAndInstall(); } catch {} return true; });
+
+ipcMain.handle('repair-version', async () => {
+  // Apaga versão/natives p/ baixar tudo do zero (cura arquivos corrompidos)
+  const s = getSettings();
+  const log = (m) => win?.webContents.send('launch-log', m);
+  let n = 0;
+  try {
+    const vdir = path.join(s.gameDir, 'versions');
+    if (fs.existsSync(vdir)) {
+      for (const d of fs.readdirSync(vdir)) {
+        if (d === s.version || d.includes(s.version)) {
+          fs.rmSync(path.join(vdir, d), { recursive: true, force: true });
+          n++;
+        }
+      }
+    }
+  } catch {}
+  try {
+    for (const d of fs.readdirSync(os.tmpdir())) {
+      if (/^lwjgl_/.test(d)) fs.rmSync(path.join(os.tmpdir(), d), { recursive: true, force: true });
+    }
+  } catch {}
+  log(`Reparo: ${n} pasta(s) de versão removidas. Clique JOGAR p/ baixar tudo de novo ✓`);
+  return { removed: n };
+});
 
 // ---------- Amigos (só Obsidian: lista local + status real via ping) ----------
 function friendsPath() { return path.join(userData(), 'friends.json'); }
