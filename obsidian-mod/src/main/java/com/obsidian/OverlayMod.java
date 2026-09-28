@@ -21,6 +21,7 @@ public class OverlayMod implements ClientModInitializer {
     HudRenderCallback.EVENT.register(new OverlayHud());
     ClientTickEvents.END_CLIENT_TICK.register(client -> {
       OverlayHud.onTick();
+      FriendFile.tick();
       while (openMenu.wasPressed()) {
         client.setScreen(new OverlayScreen());
       }

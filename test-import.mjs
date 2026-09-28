@@ -1,0 +1,1 @@
+import('./renderer/js/app.js').then(m => console.log('OK')).catch(e => console.error(e));

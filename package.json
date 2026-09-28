@@ -32,13 +32,21 @@
     "files": [
       "main.js",
       "preload.js",
-      "renderer/**/*",
       "overlay-dist/**/*",
       "assets/icon.png",
       "assets/skins/**/*",
       "node_modules/psl/**/*",
       "package.json",
       "!**/.jdk21/**"
+    ],
+    "extraResources": [
+      {
+        "from": "renderer",
+        "to": "renderer",
+        "filter": [
+          "**/*"
+        ]
+      }
     ],
     "win": {
       "icon": "assets/icon.ico",
@@ -80,5 +88,16 @@
   },
   "allowScripts": {
     "electron@31.7.7": true
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nathanijanques2012-sys/obsidian-launcher.git"
+  },
+  "keywords": [],
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/nathanijanques2012-sys/obsidian-launcher/issues"
+  },
+  "homepage": "https://github.com/nathanijanques2012-sys/obsidian-launcher#readme"
 }

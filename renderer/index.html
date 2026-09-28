@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Obsidian Launcher</title>
 <link rel="stylesheet" href="styles.css">
+<link rel="preload" as="script" href="js/app.js">
 </head>
 <body>
 <div class="app">
@@ -17,6 +18,8 @@
       <button class="nav" data-page="packs">🎨 Texturas</button>
       <button class="nav" data-page="modpacks">📦 Modpacks</button>
       <button class="nav" data-page="skins">🎭 Skins</button>
+      <button class="nav" data-page="friends">👥 Amigos</button>
+      <button class="nav" data-page="themes">🎨 Tema</button>
       <button class="nav" data-page="config">⚙ Config</button>
       <button class="nav" data-page="about">ⓘ Sobre</button>
     </nav>
@@ -42,6 +45,7 @@
           <p class="muted">Vanilla • Fabric • Forge • Modrinth • Auto-update</p>
         </div>
         <div class="hero-actions">
+          <select id="profileSelect" title="Perfil" style="min-width:160px;"></select>
           <select id="version" title="Versão"></select>
           <select id="loader" title="Loader">
             <option value="vanilla">Vanilla</option>
@@ -54,28 +58,62 @@
         </div>
       </div>
 
-      <div class="card login-card">
+      <!-- Dashboard Grid -->
+      <div class="dashboard-grid" style="display:grid;grid-template-columns:1fr 320px;gap:16px;margin-bottom:16px;">
+        <!-- Left Column -->
         <div>
-          <h2>Conta</h2>
-          <p class="muted">Microsoft = servidores originais. Offline = singleplayer + servidor com online-mode=false.</p>
+          <!-- Stats Cards -->
+          <div class="card" style="margin-bottom:16px;">
+            <h2>Resumo <span id="modsCtx" class="chip"></span></h2>
+            <div id="dashboardStats"></div>
+          </div>
+          
+          <!-- Recent Activity -->
+          <div class="card" style="margin-bottom:16px;">
+            <h2>Atividade Recente</h2>
+            <div id="dashboardActivity" style="max-height:200px;overflow:auto;"></div>
+          </div>
+          
+          <!-- Quick Actions -->
+          <div class="card">
+            <h2>Ações Rápidas</h2>
+            <div id="dashboardActions"></div>
+          </div>
         </div>
-        <div class="login-row">
-          <button id="btnLogin" class="primary">Login Microsoft</button>
-          <span class="or">ou</span>
-          <input id="offlineName" placeholder="nick offline" maxlength="16">
-          <button id="btnOffline">Entrar offline</button>
+        
+        <!-- Right Column -->
+        <div>
+          <!-- Account Card -->
+          <div class="card" style="margin-bottom:16px;">
+            <h2>Conta</h2>
+            <div id="dashboardUser"></div>
+            <div class="login-row" style="margin-top:12px;">
+              <button id="btnLogin" class="primary">Login Microsoft</button>
+              <span class="or">ou</span>
+              <input id="offlineName" placeholder="nick offline" maxlength="16">
+              <button id="btnOffline">Entrar offline</button>
+            </div>
+          </div>
+          
+          <!-- Friends Online -->
+          <div class="card" style="margin-bottom:16px;">
+            <h2>Amigos <span class="chip">Online</span></h2>
+            <div id="dashboardFriends" style="max-height:300px;overflow:auto;"></div>
+            <button class="ghost" style="width:100%;margin-top:8px;" onclick="window.ObsidianApp?.navigateTo?.('friends')">Ver todos</button>
+          </div>
+          
+          <!-- Status/Log -->
+          <div class="card">
+            <h2>Status</h2>
+            <div class="bar"><div id="barFill"></div></div>
+            <div id="progress" class="muted">Parado</div>
+            <div class="login-row">
+              <button id="btnGameDir" class="ghost">Pasta do jogo</button>
+              <button id="btnCrash" class="ghost">Ver último crash</button>
+            </div>
+            <pre id="log">Bem-vindo ao Obsidian Launcher ⬢&#10;</pre>
+          </div>
         </div>
-      </div>
-
-      <div class="card">
-        <h2>Status</h2>
-        <div class="bar"><div id="barFill"></div></div>
-        <div id="progress" class="muted">Parado</div>
-        <div class="login-row">
-          <button id="btnGameDir" class="ghost">Pasta do jogo</button>
-          <button id="btnCrash" class="ghost">Ver último crash</button>
-        </div>
-        <pre id="log">Bem-vindo ao Obsidian Launcher ⬢&#10;</pre>
       </div>
     </section>
 
@@ -166,6 +204,58 @@
       </div>
     </section>
 
+    <section id="page-friends" class="page">
+      <div class="card">
+        <h2>Sala online <span class="chip">tempo real</span></h2>
+        <p class="muted">Crie uma sala, passe o código e veja quem tá online, converse e entre no servidor do amigo com 1 clique. Precisa do relay ligado (<code>friend-server/server.js</code>).</p>
+        <div class="login-row">
+          <input id="relayUrl" placeholder="ws://127.0.0.1:8091" style="flex:2">
+          <input id="relayNick" placeholder="seu nick" maxlength="16" style="flex:1">
+          <button id="btnRelayConnect" class="primary">Conectar</button>
+          <span id="relayStatus" class="muted"></span>
+        </div>
+        <div id="roomBox" style="display:none">
+          <div class="login-row" style="margin-top:10px">
+            <button id="btnRoomCreate" class="ghost">Criar sala</button>
+            <input id="roomCode" placeholder="código (ex: 42J3K9)" maxlength="8" style="width:140px">
+            <button id="btnRoomJoin" class="ghost">Entrar</button>
+            <button id="btnRoomLeave" class="ghost">Sair</button>
+            <b id="roomInfo"></b>
+          </div>
+          <div id="roomMembers" style="margin-top:10px"></div>
+          <div class="login-row" style="margin-top:10px">
+            <input id="shareHost" placeholder="IP do meu servidor" style="flex:2">
+            <input id="sharePort" placeholder="porta" value="25565" style="width:90px">
+            <button id="btnShare" class="ghost">Divulgar</button>
+            <button id="btnUnshare" class="ghost">Ocultar</button>
+          </div>
+          <div id="roomChat" style="margin-top:10px;max-height:180px;overflow:auto;background:#0b0e14;border:1px solid var(--line);border-radius:10px;padding:10px"></div>
+          <div class="login-row" style="margin-top:8px">
+            <input id="chatText" placeholder="mensagem..." maxlength="300" style="flex:1">
+            <button id="btnChatSend" class="primary">Enviar</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Amigos <span class="chip">só Obsidian</span></h2>
+        <p class="muted">Lista salva neste launcher. O status é real (ping no servidor). Passe seu convite p/ amigos com Obsidian.</p>
+        <div class="login-row">
+          <input id="friendNick" placeholder="nick do amigo" maxlength="24">
+          <input id="friendAddr" placeholder="IP:porta (ex: jogo.gg:25565)">
+          <button id="btnFriendAdd" class="primary">Adicionar</button>
+          <button id="btnFriendsRefresh" class="ghost">Atualizar status</button>
+        </div>
+        <div class="login-row">
+          <input id="inviteAddr" placeholder="seu servidor p/ convite">
+          <button id="btnInviteCreate" class="ghost">Criar convite</button>
+          <input id="inviteCode" placeholder="cole o código OBS1-...">
+          <button id="btnInviteAccept" class="ghost">Entrar</button>
+        </div>
+        <div id="inviteOut" class="muted"></div>
+        <div id="friends"></div>
+      </div>
+    </section>
+
     <section id="page-config" class="page">
       <div class="card">
         <h2>Configurações</h2>
@@ -192,6 +282,83 @@
       </div>
     </section>
 
+    <section id="page-themes" class="page">
+      <div class="card">
+        <h2>🎨 Personalização Visual</h2>
+        <p class="muted">Escolha um preset ou crie seu tema personalizado. As alterações são aplicadas em tempo real.</p>
+      </div>
+
+      <!-- Preset Themes -->
+      <div class="card">
+        <h2>Temas Prontos</h2>
+        <div id="presetThemes" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;"></div>
+      </div>
+
+      <!-- Custom Colors -->
+      <div class="card">
+        <h2>Cores Personalizadas</h2>
+        <div class="grid2" style="margin-top:12px;">
+          <label>
+            <span>Cor Primária (Accent)</span>
+            <input type="color" id="themePrimary" value="#a855f7">
+          </label>
+          <label>
+            <span>Cor Secundária</span>
+            <input type="color" id="themeSecondary" value="#7c3aed">
+          </label>
+        </div>
+        <div class="login-row" style="margin-top:12px;">
+          <button id="btnSaveCustomTheme" class="primary">Salvar Tema Personalizado</button>
+          <button id="btnResetTheme" class="ghost">Resetar Padrão</button>
+        </div>
+      </div>
+
+      <!-- Background Options -->
+      <div class="card">
+        <h2>Plano de Fundo</h2>
+        <div class="grid2" style="margin-top:12px;">
+          <label>
+            <span>Tipo de Background</span>
+            <select id="bgType">
+              <option value="gradient">Gradiente (Padrão)</option>
+              <option value="solid">Cor Sólida</option>
+              <option value="dark">Escuro Total</option>
+              <option value="custom">Imagem Personalizada</option>
+            </select>
+          </label>
+        </div>
+        <div id="bgCustom" style="display:none;margin-top:12px;">
+          <label style="display:flex;flex-direction:column;gap:6px;font-size:13px;">
+            <span>Imagem de Fundo</span>
+            <input type="file" id="bgImageInput" accept="image/*" style="display:none;">
+            <button class="ghost" onclick="document.getElementById('bgImageInput').click()">Selecionar Imagem</button>
+            <div id="bgImagePreview" style="width:100%;height:120px;border-radius:8px;background:#120a24;border:1px solid var(--line);background-size:cover;background-position:center;"></div>
+          </label>
+        </div>
+        <div class="grid2" style="margin-top:12px;">
+          <label>
+            <span>Opacidade Overlay <span id="bgOpacityVal">85</span>%</span>
+            <input type="range" id="bgOpacity" min="0" max="100" value="85">
+          </label>
+          <label>
+            <span>Blur Background <span id="bgBlurVal">0</span>px</span>
+            <input type="range" id="bgBlur" min="0" max="50" value="0">
+          </label>
+        </div>
+      </div>
+
+      <!-- Import/Export -->
+      <div class="card">
+        <h2>Importar / Exportar Tema</h2>
+        <p class="muted">Compartilhe seus temas ou faça backup das configurações.</p>
+        <div class="login-row" style="margin-top:12px;">
+          <button id="btnExportTheme" class="primary">📤 Exportar JSON</button>
+          <button id="btnImportTheme" class="ghost">📥 Importar JSON</button>
+          <input type="file" id="importThemeFile" accept=".json" style="display:none;">
+        </div>
+      </div>
+    </section>
+
     <section id="page-about" class="page">
       <div class="card" style="text-align:center">
         <img src="../assets/icon.png" alt="Obsidian" style="width:96px;height:96px;border-radius:22px;box-shadow:0 0 30px #a855f7">
@@ -207,6 +374,6 @@
     </section>
   </main>
 </div>
-<script src="renderer.js"></script>
+<script type="module" src="js/app.js"></script>
 </body>
 </html>

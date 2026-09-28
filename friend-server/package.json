@@ -1,0 +1,1 @@
+{"name":"obsidian-friend-server","version":"0.1.0","description":"Relay de amizades do Obsidian Launcher","main":"server.js","scripts":{"start":"node server.js"},"dependencies":{"ws":"^8.22.0"}}

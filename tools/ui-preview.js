@@ -17,6 +17,8 @@ contextBridge.exposeInMainWorld('api', {
   getAccount: async () => ({ name: 'Steve', type: 'offline' }),
   logout: async () => true,
   launch: async () => true,
+  stopGame: async () => ({ killed: 0 }),
+  onGameStarted: () => {}, onGameClosed: () => {},
   searchModrinth: async () => ({ hits: [] }),
   modDownload: async () => ({ file: 'x.jar', version: '1.0', skipped: false }),
   contentDownload: async () => ({ file: 'x.zip', version: '1.0', skipped: false }),
@@ -28,6 +30,13 @@ contextBridge.exposeInMainWorld('api', {
   openContentFolder: async () => true,
   openGameDir: async () => true,
   lastCrash: async () => ({ file: null, head: '' }),
+  friendSync: async () => true,
+  friendsList: async () => [],
+  friendAdd: async () => true,
+  friendDelete: async () => true,
+  friendPing: async () => ({ online: false }),
+  inviteCreate: async () => ({ code: 'OBS1-X', mc: '26.3' }),
+  inviteAccept: async () => ({ nick: 'X', address: 'y' }),
   skinList: async () => ({ skins: [
 ${skins},
     { name: 'minha-skin', file: 'minha.png', preset: false, url: 'data:image/png;base64,${fs.readFileSync(path.join(dir, 'ninja.png')).toString('base64')}' }
@@ -44,13 +53,40 @@ ${skins},
 }
 app.whenReady().then(async () => {
   const win = new BrowserWindow({ show: false, width: 1280, height: 800, webPreferences: { offscreen: true, preload: path.join(__dirname, 'ui-stub-gen.js') } });
+  win.webContents.on('console-message', (_, __, msg) => { if (/error|erro|fail/i.test(msg)) console.log('CONSOLE:', msg.slice(0, 200)); });
   await win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
-  await new Promise(r => setTimeout(r, 1500));
+  await new Promise(r => setTimeout(r, 2500));
+  const dom = await win.webContents.executeJavaScript(`(() => ({
+    hero: !!(document.querySelector('.hero h1')),
+    versionOpts: document.getElementById('version') ? document.getElementById('version').options.length : -1,
+    loader: !!document.getElementById('loader'),
+    btnPlay: !!document.getElementById('btnPlay'),
+    modsCtx: !!document.getElementById('modsCtx'),
+    skinVariant: !!document.getElementById('skinVariant'),
+    roomBox: !!document.getElementById('roomBox'),
+    friends: !!document.getElementById('friends'),
+    user: (document.getElementById('user') || {}).textContent
+  }))()`);
+  console.log('DOM-STARTUP:', JSON.stringify(dom));
   let img = await win.webContents.capturePage();
   require('fs').writeFileSync(path.join(__dirname, 'ui-play.png'), img.toPNG());
   console.log('play ok');
   await win.webContents.executeJavaScript(`document.querySelector('[data-page="mods"]').click()`);
-  await new Promise(r => setTimeout(r, 800));
+  await new Promise(r => setTimeout(r, 2500));
+  const mdbg = await win.webContents.executeJavaScript(`(async () => {
+    const out = {};
+    try { out.modsList = JSON.stringify(await window.ObsidianApp.API.modsList()).slice(0, 60); }
+    catch (e) { out.modsListErr = String(e && e.message).slice(0, 120); }
+    out.countEl = !!document.getElementById('modsCount');
+    try {
+      const { VirtualList } = await import('./js/components/VirtualList.js');
+      const c = document.createElement('div');
+      const vl = new VirtualList({ container: c, items: [], renderItem: () => '', emptyMessage: 'VAZIO' });
+      out.vl = c.querySelector('.vl-empty') ? c.querySelector('.vl-empty').textContent : 'sem-emptyEl';
+    } catch (e) { out.vlErr = String(e && e.message).slice(0, 150); }
+    return out;
+  })()`);
+  console.log('MODS-DOM:', JSON.stringify(mdbg));
   img = await win.webContents.capturePage();
   require('fs').writeFileSync(path.join(__dirname, 'ui-mods.png'), img.toPNG());
   console.log('mods ok');
@@ -59,14 +95,20 @@ app.whenReady().then(async () => {
   img = await win.webContents.capturePage();
   require('fs').writeFileSync(path.join(__dirname, 'ui-skins.png'), img.toPNG());
   console.log('skins ok');
-  app.exit(0);
-  const dbg = await win.webContents.executeJavaScript(`(() => {
-    const el = document.getElementById('skins');
-    return { kids: el ? el.children.length : -1 };
+  await win.webContents.executeJavaScript(`document.querySelector('[data-page="friends"]').click()`);
+  await new Promise(r => setTimeout(r, 4000));
+  const dbg = await win.webContents.executeJavaScript(`(async () => {
+    const out = {};
+    out.hasMod = !!(window.ObsidianApp && window.ObsidianApp.state.pageModules.get('friends'));
+    out.friendsHTML = (document.getElementById('friends') || { innerHTML: 'SEM-EL' }).innerHTML.slice(0, 120);
+    out.relayBox = !!document.getElementById('roomBox');
+    try { const m = await import('./js/pages/friends.js'); out.importOk = true; }
+    catch (e) { out.importErr = String(e && e.message).slice(0, 200); }
+    return out;
   })()`);
-  console.log('skins-cards:', dbg.kids);
+  console.log('FDBG', JSON.stringify(dbg));
   img = await win.webContents.capturePage();
-  require('fs').writeFileSync(path.join(__dirname, 'ui-skins.png'), img.toPNG());
-  console.log('skins ok');
+  require('fs').writeFileSync(path.join(__dirname, 'ui-friends.png'), img.toPNG());
+  console.log('friends ok');
   app.exit(0);
 });

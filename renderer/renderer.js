@@ -29,6 +29,7 @@ async function init() {
   try { await refreshInstalled(); } catch {}
   try { await refreshContent('shader'); await refreshContent('resourcepack'); await refreshContent('modpack'); } catch {}
   try { await refreshSkins(); } catch {}
+  try { await refreshFriends(); } catch {}
   paintCtx();
 }
 $('btnSave').onclick = async () => {
@@ -191,6 +192,45 @@ $('btnSkinImport').onclick = async () => {
   catch (e) { $('skinMsg').textContent = 'Erro: ' + e.message; }
 };
 $('btnSkinsRefresh').onclick = refreshSkins;
+async function refreshFriends() {
+  const box = $('friends');
+  if (!box) return;
+  box.innerHTML = '<span class="muted">Carregando...</span>';
+  try {
+    const list = await window.api.friendsList();
+    if (!list.length) { box.innerHTML = '<span class="muted">Nenhum amigo. Adicione pelo nick + IP do servidor.</span>'; return; }
+    box.innerHTML = list.map(f => `<div class="mod"><b>${f.nick}</b> <span class="muted">${f.address}</span> <span class="chip" id="st-${f.nick}">...</span><br><span class="muted" id="info-${f.nick}"></span><div class="login-row"><button data-copy="${f.address}" class="ghost">Copiar IP</button><button data-fdel="${f.nick}" class="ghost">Excluir</button></div></div>`).join('');
+    box.querySelectorAll('[data-copy]').forEach(b => b.onclick = () => navigator.clipboard.writeText(b.dataset.copy));
+    box.querySelectorAll('[data-fdel]').forEach(b => b.onclick = async () => { await window.api.friendDelete(b.dataset.fdel); refreshFriends(); });
+    for (const f of list) {
+      window.api.friendPing(f.address).then(r => {
+        const st = document.getElementById('st-' + f.nick), info = document.getElementById('info-' + f.nick);
+        if (!st) return;
+        if (r.online) { st.textContent = `🟢 ${r.players} • ${r.ms}ms`; st.style.borderColor = '#3fa950'; if (info) info.textContent = `${r.version} — ${r.motd}`; }
+        else { st.textContent = '🔴 off'; if (info) info.textContent = ''; }
+      }).catch(() => {});
+    }
+  } catch (e) { box.innerHTML = 'Erro: ' + e.message; }
+}
+$('btnFriendAdd').onclick = async () => {
+  try { await window.api.friendAdd($('friendNick').value, $('friendAddr').value); $('friendNick').value = ''; $('friendAddr').value = ''; refreshFriends(); }
+  catch (e) { alert(e.message); }
+};
+$('btnFriendsRefresh').onclick = refreshFriends;
+$('btnInviteCreate').onclick = async () => {
+  try {
+    const r = await window.api.inviteCreate($('inviteAddr').value || $('friendAddr').value);
+    $('inviteOut').textContent = `Código (${r.mc || 'versão atual'}): ${r.code} — manda p/ seu amigo colar no Obsidian dele.`;
+  } catch (e) { $('inviteOut').textContent = 'Erro: ' + e.message; }
+};
+$('btnInviteAccept').onclick = async () => {
+  try {
+    const r = await window.api.inviteAccept($('inviteCode').value, '');
+    $('inviteOut').textContent = `${r.nick} (${r.address}) adicionado ✓`;
+    $('inviteCode').value = '';
+    refreshFriends();
+  } catch (e) { $('inviteOut').textContent = 'Erro: ' + e.message; }
+};
 $('btnUpdate').onclick = async () => { await window.api.checkUpdate(); };
 window.api.onLog(v => { $('log').textContent += v + '\n'; $('log').scrollTop = 1e9; });
 window.api.onProgress(v => {

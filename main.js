@@ -255,7 +255,11 @@ function createWindow() {
     autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.js') }
   });
-  win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  // Em dev: __dirname = project root. Em prod: __dirname = resources/app
+  const rendererPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'renderer', 'index.html')
+    : path.join(__dirname, 'renderer', 'index.html');
+  win.loadFile(rendererPath);
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
 }
 
@@ -405,6 +409,10 @@ ipcMain.handle('launch', async (_, opts = {}) => {
   await applySoftwareGL(javaPath, !!settings.softwareGL);
   // Separa mods por loader/versão: mistura (Fabric+Forge+OptiFine) crasha o jogo
   quarantineMods(settings.gameDir, settings.version, settings.loader);
+  if (opts.server && opts.server.host) {
+    launchOpts.quickPlay = { type: 'multiplayer', identifier: `${opts.server.host}:${opts.server.port || 25565}` };
+    win?.webContents.send('launch-log', `Entrada rápida: ${opts.server.host}:${opts.server.port || 25565}`);
+  }
   if (settings.loader === 'fabric') {
     win?.webContents.send('launch-log', 'Instalando Fabric...');
     const custom = await ensureFabric(settings.gameDir, settings.version);
@@ -699,6 +707,16 @@ ipcMain.handle('open-content-folder', async (_, kind) => {
   return true;
 });
 
+ipcMain.handle('friend-sync', (_, data) => {
+  // Espelha sala/membros p/ o mod ler no jogo (<gameDir>/obsidian/friends.json)
+  try {
+    const dir = path.join(getSettings().gameDir, 'obsidian');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'friends.json'), JSON.stringify({ room: data?.room || '', members: data?.members || [], at: Date.now() }));
+  } catch {}
+  return true;
+});
+
 ipcMain.handle('open-game-dir', async () => {
   const d = getSettings().gameDir;
   fs.mkdirSync(d, { recursive: true });
@@ -813,6 +831,101 @@ async function installModpack(projectId, mcVersion) {
 
 ipcMain.handle('check-update', () => { setupAutoUpdate(true); return true; });
 ipcMain.handle('quit-and-install', () => { try { autoUpdater.quitAndInstall(); } catch {} return true; });
+
+// ---------- Amigos (só Obsidian: lista local + status real via ping) ----------
+function friendsPath() { return path.join(userData(), 'friends.json'); }
+function loadFriends() { try { const a = JSON.parse(fs.readFileSync(friendsPath(), 'utf8')); return Array.isArray(a) ? a : []; } catch { return []; } }
+function saveFriends(f) { fs.mkdirSync(path.dirname(friendsPath()), { recursive: true }); fs.writeFileSync(friendsPath(), JSON.stringify(f, null, 2)); }
+
+function writeVarInt(buf, v, off) {
+  let i = off || 0;
+  const out = buf || [];
+  const push = buf ? (x) => { out[i++] = x; } : (x) => out.push(x);
+  do { let b = v & 0x7F; v >>>= 7; if (v) b |= 0x80; push(b); } while (v);
+  return buf ? i : Buffer.from(out);
+}
+function readVarInt(buf, off) {
+  let v = 0, shift = 0, i = off || 0, b;
+  do { b = buf[i++]; v |= (b & 0x7F) << shift; shift += 7; } while (b & 0x80);
+  return { value: v, next: i };
+}
+function mcPacket(id, data) {
+  const body = Buffer.concat([writeVarInt(null, id), data || Buffer.alloc(0)]);
+  return Buffer.concat([writeVarInt(null, body.length), body]);
+}
+function mcString(s) {
+  const b = Buffer.from(s, 'utf8');
+  return Buffer.concat([writeVarInt(null, b.length), b]);
+}
+
+function pingServer(address, timeoutMs = 6000) {
+  // ServerListPing: handshake + status. Retorna {online, ms, version, players, motd}
+  return new Promise((resolve) => {
+    const done = (r) => { try { sock.destroy(); } catch {} resolve(r); };
+    const timer = setTimeout(() => done({ online: false, error: 'timeout' }), timeoutMs);
+    let host = address, port = 25565;
+    const m = String(address).match(/^(.*?)(?::(\d+))?$/);
+    if (m) { host = m[1]; if (m[2]) port = +m[2]; }
+    const t0 = Date.now();
+    const net = require('net');
+    const sock = net.connect(port, host);
+    let buf = Buffer.alloc(0), stage = 0;
+    sock.on('connect', () => {
+      const portBuf = Buffer.alloc(2); portBuf.writeUInt16BE(port);
+      sock.write(mcPacket(0, Buffer.concat([writeVarInt(null, 767), mcString(host), portBuf, writeVarInt(null, 1)])));
+      sock.write(mcPacket(0));
+      stage = 1;
+    });
+    sock.on('data', (d) => {
+      buf = Buffer.concat([buf, d]);
+      try {
+        const l = readVarInt(buf, 0);
+        if (buf.length < l.next + l.value) return; // pacote incompleto
+        const id = readVarInt(buf, l.next);
+        const sl = readVarInt(buf, id.next);
+        const json = JSON.parse(buf.slice(sl.next, sl.next + sl.value).toString('utf8'));
+        clearTimeout(timer);
+        const desc = typeof json.description === 'string' ? json.description : (json.description && (json.description.text || '')) || '';
+        done({ online: true, ms: Date.now() - t0, version: (json.version && json.version.name) || '?', players: json.players ? `${json.players.online}/${json.players.max}` : '?', motd: String(desc).replace(/§./g, '').slice(0, 80) });
+      } catch {}
+    });
+    sock.on('error', () => { clearTimeout(timer); done({ online: false, error: 'recusado' }); });
+    sock.on('timeout', () => done({ online: false, error: 'timeout' }));
+  });
+}
+
+ipcMain.handle('friends-list', () => loadFriends());
+ipcMain.handle('friend-add', (_, nick, address) => {
+  nick = String(nick || '').trim().slice(0, 24);
+  address = String(address || '').trim().replace(/\s/g, '');
+  if (!nick) throw new Error('Dê um nick.');
+  if (!/^[\w.\-:]+$/.test(address)) throw new Error('Endereço inválido (ex: jogar.meuservidor.com:25565).');
+  const f = loadFriends().filter(x => x.nick.toLowerCase() !== nick.toLowerCase());
+  f.push({ nick, address, addedAt: Date.now() });
+  saveFriends(f);
+  return true;
+});
+ipcMain.handle('friend-delete', (_, nick) => {
+  saveFriends(loadFriends().filter(x => x.nick !== nick));
+  return true;
+});
+ipcMain.handle('friend-ping', (_, address) => pingServer(address));
+ipcMain.handle('invite-create', (_, address) => {
+  const mc = getSettings().version;
+  const code = 'OBS1-' + Buffer.from(JSON.stringify({ a: String(address).trim(), v: mc }), 'utf8').toString('base64url');
+  return { code, mc };
+});
+ipcMain.handle('invite-accept', (_, code, nick) => {
+  const m = String(code || '').trim().match(/^OBS1-([A-Za-z0-9_-]+)$/);
+  if (!m) throw new Error('Código inválido (formato OBS1-...).');
+  const { a, v } = JSON.parse(Buffer.from(m[1], 'base64url').toString('utf8'));
+  if (!a) throw new Error('Convite vazio.');
+  nick = String(nick || '').trim().slice(0, 24) || String(a).split(/[:.]/)[0];
+  const f = loadFriends().filter(x => x.nick.toLowerCase() !== nick.toLowerCase());
+  f.push({ nick, address: a, mc: v, addedAt: Date.now() });
+  saveFriends(f);
+  return { nick, address: a, mc: v };
+});
 
 // ---------- Skins ----------
 function getSkinsDir() {

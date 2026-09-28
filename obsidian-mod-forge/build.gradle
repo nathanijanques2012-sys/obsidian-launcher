@@ -1,0 +1,32 @@
+buildscript {
+  repositories { maven { url = 'https://maven.minecraftforge.net/' }; mavenCentral() }
+  dependencies { classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '6.0.+', changing: true }
+}
+apply plugin: 'net.minecraftforge.gradle'
+apply plugin: 'java'
+
+version = '0.1.0'
+group = 'com.obsidian'
+archivesBaseName = 'obsidian-overlay-forge'
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+minecraft {
+  mappings channel: 'official', version: '1.21.1'
+  runs {
+    client {
+      workingDirectory project.file('run')
+      mods { 'obsidian-overlay-forge' { source sourceSets.main } }
+    }
+  }
+}
+repositories { maven { url = 'https://maven.minecraftforge.net/' } }
+dependencies {
+  minecraft 'net.minecraftforge:forge:1.21.1-52.0.16'
+}
+tasks.withType(JavaCompile).configureEach { it.options.release = 21 }
+processResources {
+  inputs.property 'version', project.version
+  filesMatching('META-INF/mods.toml') { expand 'version': project.version }
+}
+jar { manifest { attributes(['Specification-Title': 'obsidian-overlay-forge', 'Implementation-Version': project.version]) } }

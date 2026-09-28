@@ -1,0 +1,1 @@
+import('./renderer/js/pages/mods.js').then(m => console.log('mods loaded')).catch(e => console.error(e));
