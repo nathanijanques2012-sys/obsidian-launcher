@@ -150,22 +150,37 @@ function getBundledJava(major = 21) {
 }
 
 async function getRequiredJava(mcVersion) {
-  // O JSON da versão diz o Java (1.21.x=21, 26.x=25). Sem rede, assume 21.
+  // O JSON da versão diz o Java. Sem rede, deduz pela versão.
   try {
     const m = await (await fetchT('https://piston-meta.mojang.com/mc/game/version_manifest_v2.json')).json();
     const v = (m.versions || []).find(x => x.id === mcVersion);
-    if (!v) return 21;
+    if (!v) return fallbackJava(mcVersion);
     const j = await (await fetchT(v.url)).json();
-    return (j.javaVersion && j.javaVersion.majorVersion) || 21;
-  } catch { return 21; }
+    return (j.javaVersion && j.javaVersion.majorVersion) || fallbackJava(mcVersion);
+  } catch { return fallbackJava(mcVersion); }
 }
 
 const JDK_URLS = {
+  8: 'https://api.adoptium.net/v3/binary/latest/8/ga/windows/x64/jdk/hotspot/normal/eclipse',
+  17: 'https://aka.ms/download-jdk/microsoft-jdk-17-windows-x64.zip',
   21: 'https://aka.ms/download-jdk/microsoft-jdk-21-windows-x64.zip',
   25: 'https://api.adoptium.net/v3/binary/latest/25/ga/windows/x64/jdk/hotspot/normal/eclipse'
 };
 
+function fallbackJava(id) {
+  // Sem manifest (snapshot/custom): deduz pela versão
+  const m = String(id).match(/^(\d+)\.(\d+)(?:\.(\d+))?/);
+  if (!m) return 21;
+  const major = +m[1], minor = +m[2], patch = +(m[3] || 0);
+  if (major > 1) return 25; // esquema novo (26.x...)
+  if (minor <= 16) return 8; // 1.0–1.16
+  if (minor === 17) return 17;
+  if (minor < 20 || (minor === 20 && patch < 5)) return 17; // 1.18–1.20.4
+  return 21; // 1.20.5+
+}
+
 async function ensureJava(major = 21) {
+  if (major === 16) { major = 17; } // 1.17 roda no 17 (16 morreu, sem build pública boa)
   const found = getBundledJava(major);
   if (found) return found;
   const url = JDK_URLS[major];
@@ -302,10 +317,10 @@ ipcMain.handle('save-settings', (_, s) => {
 });
 
 ipcMain.handle('get-versions', async () => {
-  // Lista oficial Mojang (release + snapshot)
-  const res = await fetch('https://piston-meta.mojang.com/mc/game/version_manifest_v2.json');
+  // TODAS as releases (da mais nova à mais velha), p/ jogar qualquer era
+  const res = await fetchT('https://piston-meta.mojang.com/mc/game/version_manifest_v2.json');
   const j = await res.json();
-  return j.versions.filter(v => v.type === 'release').slice(0, 30).map(v => v.id);
+  return j.versions.filter(v => v.type === 'release').map(v => v.id);
 });
 
 ipcMain.handle('get-account', () => {
@@ -425,9 +440,12 @@ ipcMain.handle('launch', async (_, opts = {}) => {
     launchOpts.version = { number: settings.version, type: 'release', custom };
     await ensureFabricApi(settings.gameDir, settings.version);
     if (acc.type === 'offline') await ensureStraySkins(settings.gameDir, settings.version);
-    if (settings.overlay) {
+    // Overlay foi compilado p/ 1.21: em outra versão ele crasharia o jogo
+    if (settings.overlay && /^1\.21(\.|$)/.test(settings.version)) {
       const o = ensureOverlay(settings.gameDir);
       win?.webContents.send('launch-log', o ? 'Overlay Obsidian ativo ✓' : 'Overlay .jar não encontrado (rode build do obsidian-mod)');
+    } else if (settings.overlay) {
+      win?.webContents.send('launch-log', 'Overlay só existe p/ 1.21 (pulando) — resto funciona normal.');
     }
   } else if (settings.loader === 'forge' || settings.loader === 'optifine') {
     if (settings.loader === 'optifine') {
@@ -437,7 +455,7 @@ ipcMain.handle('launch', async (_, opts = {}) => {
       win?.webContents.send('launch-log', 'Instalando Forge...');
       launchOpts.forge = await ensureForge(settings.gameDir, settings.version);
     }
-    if (settings.overlay) {
+    if (settings.overlay && settings.version === '1.21.1') {
       // Overlay Forge (mesmo menu/HUD/amigos do Fabric)
       const src = getOverlayForgeJar();
       if (src) {
