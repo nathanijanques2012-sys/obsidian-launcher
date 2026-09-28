@@ -32,21 +32,13 @@
     "files": [
       "main.js",
       "preload.js",
+      "renderer/**/*",
       "overlay-dist/**/*",
       "assets/icon.png",
       "assets/skins/**/*",
       "node_modules/psl/**/*",
       "package.json",
       "!**/.jdk21/**"
-    ],
-    "extraResources": [
-      {
-        "from": "renderer",
-        "to": "renderer",
-        "filter": [
-          "**/*"
-        ]
-      }
     ],
     "win": {
       "icon": "assets/icon.ico",

@@ -219,6 +219,11 @@ function getOverlayJar() {
   return fs.existsSync(p) ? p : null;
 }
 
+function getOverlayForgeJar() {
+  const p = path.join(__dirname, 'overlay-dist', 'obsidian-overlay-forge.jar');
+  return fs.existsSync(p) ? p : null;
+}
+
 async function ensureFabric(root, mcVersion) {
   // Baixa profile Fabric oficial (meta.fabricmc.net) p/ versions/
   const loaders = await (await fetch(`https://meta.fabricmc.net/v2/versions/loader/${mcVersion}`)).json();
@@ -430,6 +435,17 @@ ipcMain.handle('launch', async (_, opts = {}) => {
     } else {
       win?.webContents.send('launch-log', 'Instalando Forge...');
       launchOpts.forge = await ensureForge(settings.gameDir, settings.version);
+    }
+    if (settings.overlay) {
+      // Overlay Forge (mesmo menu/HUD/amigos do Fabric)
+      const src = getOverlayForgeJar();
+      if (src) {
+        const mods = path.join(settings.gameDir, 'mods');
+        fs.mkdirSync(mods, { recursive: true });
+        const dest = path.join(mods, 'obsidian-overlay-forge.jar');
+        if (!fs.existsSync(dest) || fs.statSync(src).size !== fs.statSync(dest).size) fs.copyFileSync(src, dest);
+        win?.webContents.send('launch-log', 'Overlay Obsidian (Forge) ativo ✓');
+      }
     }
   }
 

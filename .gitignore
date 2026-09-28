@@ -13,3 +13,11 @@ obsidian-mod/build/
 obsidian-mod/.gradle/
 *.log
 tools/ui-stub-gen.js
+
+obsidian-mod/build/
+obsidian-mod/.gradle/
+obsidian-mod/run/
+obsidian-mod-forge/build/
+obsidian-mod-forge/.gradle/
+obsidian-mod-forge/run/
+

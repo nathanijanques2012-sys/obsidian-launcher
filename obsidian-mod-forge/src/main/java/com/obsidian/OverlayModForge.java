@@ -5,8 +5,8 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.CustomizeGuiOverlayEvent;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
-import net.minecraftforge.client.event.RenderGuiEvent;
 import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -34,8 +34,15 @@ public class OverlayModForge {
 
   @Mod.EventBusSubscriber(modid = MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
   public static class ClientEvents {
+    // Forge 52 removeu RenderGuiEvent/overlay system: HUD via camadas vanilla
+    // (Chat e Boss disparam todo frame com contexto gráfico)
     @SubscribeEvent
-    public static void hud(RenderGuiEvent.Pre e) {
+    public static void hudChat(CustomizeGuiOverlayEvent.Chat e) {
+      OverlayHudForge.render(e.getGuiGraphics());
+    }
+
+    @SubscribeEvent
+    public static void hudBoss(CustomizeGuiOverlayEvent.BossEventProgress e) {
       OverlayHudForge.render(e.getGuiGraphics());
     }
 
