@@ -260,11 +260,8 @@ function createWindow() {
     autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.js') }
   });
-  // Em dev: __dirname = project root. Em prod: __dirname = resources/app
-  const rendererPath = app.isPackaged
-    ? path.join(process.resourcesPath, 'renderer', 'index.html')
-    : path.join(__dirname, 'renderer', 'index.html');
-  win.loadFile(rendererPath);
+  // __dirname = project root (dev) ou resources/app (pack, asar desligado)
+  win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
 }
 
