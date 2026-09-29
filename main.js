@@ -473,8 +473,8 @@ ipcMain.handle('launch', async (_, opts = {}) => {
     }
   }
 
-  win?.minimize(); // tira o launcher da frente p/ o jogo ganhar foco/mouse
   win?.webContents.send('launch-log', `[4/4] Iniciando Minecraft ${settings.version} (${settings.loader})...`);
+  win?.webContents.send('launch-log', 'O jogo abre em outra janela. Na 1ª vez pode demorar ATÉ 5 MINUTOS (tela branca = carregando). Não feche!');
   // Temp único por execução: 2 cliques rápidos extraíam natives/SDL no mesmo
   // lugar e um deles carregava DLL pela metade (UnsatisfiedLinkError 1114)
   const runTmp = path.join(userData(), '.run-tmp', String(Date.now()));
