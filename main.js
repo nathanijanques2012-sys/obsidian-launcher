@@ -91,14 +91,16 @@ async function applySoftwareGL(javaExe, on) {
   const binDir = path.dirname(javaExe);
   const flag = path.join(userData(), '.mesa', 'active');
   const wasOn = (() => { try { return fs.readFileSync(flag, 'utf8') === binDir; } catch { return false; } })();
-  if (on === wasOn && (!on || MESA_DLLS.every(f => fs.existsSync(path.join(binDir, f))))) return;
   if (!on) {
-    for (const f of MESA_DLLS) { try { fs.unlinkSync(path.join(binDir, f)); } catch {} }
+    // Sempre garante a saída: a flag pode ter sumido e as DLLs ficado
+    let gone = 0;
+    for (const f of MESA_DLLS) { try { fs.unlinkSync(path.join(binDir, f)); gone++; } catch {} }
     try { fs.unlinkSync(flag); } catch {}
-    log('Renderização por hardware restaurada ✓');
+    if (gone) log('Renderização por hardware restaurada ✓');
     return;
   }
   const mesaDir = path.join(userData(), '.mesa', MESA_VER);
+  if (wasOn && MESA_DLLS.every(f => fs.existsSync(path.join(binDir, f)))) return; // já ativo
   const have = MESA_DLLS.every(f => fs.existsSync(path.join(mesaDir, 'x64', f)));
   if (!have) {
     try {
