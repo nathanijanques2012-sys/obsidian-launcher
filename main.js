@@ -543,6 +543,8 @@ async function ensureFabricApi(root, mcVersion) {
 }
 
 let _ofTable = null;
+// Pares COMPROVADOS em jogo (tabela oficial nem sempre acerta o mundo real)
+const PROVEN_FORGE = { '1.21.1': '52.1.14' };
 async function scrapeOptiFineTable() {
   // A tabela do optifine.net diz o Forge compatível de cada OptiFine/MC.
   // Ex: 1.21.1 -> OptiFine_1.21.1_HD_U_J1.jar + Forge 52.0.16
@@ -692,8 +694,9 @@ async function ensureOptiFine(root, mcVersion) {
     const ok = Object.keys(table).join(', ');
     throw new Error(`OptiFine estável não tem build p/ ${mcVersion} (só previews, sem Forge). Use: ${ok}`);
   }
-  log(`Par oficial: OptiFine ${row.name} + Forge ${row.forge}`);
-  const forgeInstaller = await ensureForge(root, mcVersion, row.forge);
+  const forgeVer = PROVEN_FORGE[mcVersion] || row.forge;
+  log(`Par oficial: OptiFine ${row.name} + Forge ${forgeVer}`);
+  const forgeInstaller = await ensureForge(root, mcVersion, forgeVer);
   const mods = path.join(root, 'mods');
   fs.mkdirSync(mods, { recursive: true });
   const dest = path.join(mods, row.file);
