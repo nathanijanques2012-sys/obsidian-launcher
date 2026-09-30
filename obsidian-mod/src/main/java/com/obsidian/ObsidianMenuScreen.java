@@ -7,9 +7,12 @@ import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
 import net.minecraft.client.gui.screen.option.OptionsScreen;
 import net.minecraft.client.gui.screen.world.SelectWorldScreen;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 
 // Menu principal estilo CMClient: topo com logo + botoes, card central arredondado.
 public class ObsidianMenuScreen extends Screen {
+  private static final Identifier LOGO = Identifier.of("obsidian-overlay", "textures/gui/logo.png");
+
   public ObsidianMenuScreen() { super(Text.literal("Obsidian")); }
 
   private void btn(String text, int x, int y, int w, int h, RoundedButton.Press p) {
@@ -69,8 +72,10 @@ public class ObsidianMenuScreen extends Screen {
     int cx = width / 2, cw = 260, ch = 240, x0 = cx - cw / 2, y0 = height / 2 - 105;
     GuiDraw.rounded(ctx, x0, y0, x0 + cw, y0 + ch, 16, 0xDD141926);
     GuiDraw.roundedOutline(ctx, x0, y0, x0 + cw, y0 + ch, 16, 0xFF7C3AED);
-    ctx.drawCenteredTextWithShadow(textRenderer, "⬢", cx, y0 + 18, 0xB44DFF);
-    ctx.drawCenteredTextWithShadow(textRenderer, "OBSIDIAN", cx, y0 + 40, 0xFFFFFF);
+    GuiDraw.roundedOutline(ctx, x0 + 2, y0 + 2, x0 + cw - 2, y0 + ch - 2, 14, 0x447C3AED);
+    ctx.drawTexture(LOGO, cx - 18, y0 + 8, 0, 0, 36, 36, 36, 36);
+    ctx.drawCenteredTextWithShadow(textRenderer, "OBSIDIAN", cx, y0 + 48, 0xFFFFFF);
+    ctx.drawCenteredTextWithShadow(textRenderer, "launcher edition", cx, y0 + 60, 0xA855F7);
     if (OverlayMod.showFriends && !FriendFile.members().isEmpty()) {
       ctx.drawCenteredTextWithShadow(textRenderer, FriendFile.members().size() + " amigo(s) online", cx, y0 + 58, 0x55FF55);
     }
