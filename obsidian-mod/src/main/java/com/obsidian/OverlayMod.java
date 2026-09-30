@@ -13,6 +13,7 @@ public class OverlayMod implements ClientModInitializer {
   public static boolean showFps = true;
   public static boolean showCoords = true;
   public static boolean showCps = true;
+  public static boolean showFriends = true;
 
   @Override
   public void onInitializeClient() {

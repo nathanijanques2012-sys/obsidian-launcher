@@ -36,7 +36,7 @@ public class OverlayHudForge {
     }
     if (OverlayModForge.showCps) { ctx.drawString(c.font, "CPS: " + getCps(), 8, y, 0x55FF55, true); y += 10; }
     String room = FriendFileForge.room();
-    if (!room.isEmpty()) {
+    if (OverlayModForge.showFriends && !room.isEmpty()) {
       ctx.drawString(c.font, "👥 " + room + " (" + FriendFileForge.members().size() + ")", 8, y, 0x55FFFF, true); y += 10;
       for (String n : FriendFileForge.members()) {
         ctx.drawString(c.font, "• " + n, 12, y, 0xDDDDDD, false); y += 9;

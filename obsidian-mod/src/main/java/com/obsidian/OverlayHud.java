@@ -40,7 +40,7 @@ public class OverlayHud implements HudRenderCallback {
     if (OverlayMod.showCps) { ctx.drawText(c.textRenderer, "CPS: " + getCps(), 8, y, 0x55FF55, true); y += 10; }
     // Amigos da sala (launcher espelha em obsidian/friends.json)
     String room = FriendFile.room();
-    if (!room.isEmpty()) {
+    if (OverlayMod.showFriends && !room.isEmpty()) {
       ctx.drawText(c.textRenderer, "👥 " + room + " (" + FriendFile.members().size() + ")", 8, y, 0x55FFFF, true); y += 10;
       for (String n : FriendFile.members()) {
         ctx.drawText(c.textRenderer, "• " + n, 12, y, 0xDDDDDD, false); y += 9;
