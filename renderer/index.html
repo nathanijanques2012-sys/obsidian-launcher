@@ -19,6 +19,7 @@
       <button class="nav" data-page="modpacks">📦 Modpacks</button>
       <button class="nav" data-page="skins">🎭 Skins</button>
       <button class="nav" data-page="friends">👥 Amigos</button>
+      <button class="nav" data-page="servers">🖥️ Servidores</button>
       <button class="nav" data-page="themes">🎨 Tema</button>
       <button class="nav" data-page="config">⚙ Config</button>
       <button class="nav" data-page="about">ⓘ Sobre</button>
@@ -253,6 +254,36 @@
         </div>
         <div id="inviteOut" class="muted"></div>
         <div id="friends"></div>
+      </div>
+    </section>
+
+    <section id="page-servers" class="page">
+      <div class="card">
+        <h2>Servidores <span class="chip">MC Java • Hytale</span></h2>
+        <p class="muted">Suba seu próprio servidor e jogue com amigos. Minecraft baixa tudo sozinho. Hytale precisa do App ID SteamCMD.</p>
+        <div class="login-row">
+          <input id="srvName" placeholder="nome (ex: survival)" style="flex:1">
+          <select id="srvType" title="Tipo">
+            <option value="minecraft-java">Minecraft Java</option>
+            <option value="hytale-steamcmd">Hytale (SteamCMD)</option>
+            <option value="custom">Programa custom</option>
+          </select>
+          <input id="srvVersion" placeholder="versão" value="26.3" style="width:90px">
+          <input id="srvPort" placeholder="porta" value="25565" style="width:80px">
+        </div>
+        <div class="login-row" style="margin-top:8px">
+          <input id="srvExtra" placeholder="App ID Hytale ou caminho .exe custom" style="flex:1">
+          <button id="btnSrvAdd" class="primary">Criar servidor</button>
+        </div>
+        <div id="servers"></div>
+      </div>
+      <div class="card">
+        <h2>Console <span id="srvConsoleName" class="chip"></span></h2>
+        <pre id="srvConsole" style="background:#05070c;border:1px solid var(--line);height:220px;overflow:auto;font-size:12px;padding:10px;border-radius:10px;">Selecione um servidor rodando.</pre>
+        <div class="login-row" style="margin-top:8px">
+          <input id="srvCmd" placeholder="comando (ex: say oi, stop, list...)" style="flex:1">
+          <button id="btnSrvCmd" class="primary">Enviar</button>
+        </div>
       </div>
     </section>
 

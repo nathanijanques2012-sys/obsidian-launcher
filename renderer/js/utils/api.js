@@ -65,7 +65,7 @@ export async function apiCall(method, ...args) {
                         'modDownload', 'contentDownload', 'modDelete', 'contentDelete',
                         'friendAdd', 'friendDelete', 'inviteCreate', 'inviteAccept', 'friendSync',
                         'skinImport', 'skinDelete', 'skinApply', 'checkUpdate', 'installUpdate', 'repairVersion',
-                        'stopGame'].includes(method);
+                        'stopGame', 'serverAdd', 'serverDelete', 'serverStart', 'serverStop', 'serverCmd'].includes(method);
     
     if (!isMutation) {
       cache.set(key, { data: result, timestamp: Date.now() });
@@ -213,6 +213,15 @@ export const API = {
   checkUpdate: () => apiCall('checkUpdate'),
   installUpdate: () => apiCall('installUpdate'),
   repairVersion: () => apiCall('repairVersion'),
+  serversList: () => apiCall('serversList'),
+  serverAdd: (d) => apiCall('serverAdd', d),
+  serverDelete: (id) => apiCall('serverDelete', id),
+  serverStart: (id) => apiCall('serverStart', id),
+  serverStop: (id) => apiCall('serverStop', id),
+  serverCmd: (id, c) => apiCall('serverCmd', id, c),
+  serverLogGet: (id) => apiCall('serverLogGet', id),
+  onServerLog: (cb) => window.api.onServerLog(cb),
+  onServerState: (cb) => window.api.onServerState(cb),
   
   // Skins
   skinList: () => apiCall('skinList'),

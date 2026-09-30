@@ -918,6 +918,134 @@ async function installModpack(projectId, mcVersion) {
 ipcMain.handle('check-update', () => { setupAutoUpdate(true); return true; });
 ipcMain.handle('quit-and-install', () => { try { autoUpdater.quitAndInstall(); } catch {} return true; });
 
+// ---------- Servidores (MC Java + Hytale via SteamCMD + custom) ----------
+const serversPath = () => path.join(userData(), 'servers.json');
+function loadServers() { try { const a = JSON.parse(fs.readFileSync(serversPath(), 'utf8')); return Array.isArray(a) ? a : []; } catch { return []; } }
+function saveServers(s) { fs.mkdirSync(path.dirname(serversPath()), { recursive: true }); fs.writeFileSync(serversPath(), JSON.stringify(s, null, 2)); }
+const runningServers = new Map(); // id -> {proc, log:[]}
+
+function serverDir(s) { return s.dir || path.join(userData(), 'servers', s.id); }
+function slog(id, line) {
+  const r = runningServers.get(id);
+  const text = String(line).replace(/\r/g, '').slice(0, 500);
+  if (r) { r.log.push(text); if (r.log.length > 400) r.log.splice(0, r.log.length - 400); }
+  win?.webContents.send('server-log', { id, line: text });
+}
+
+ipcMain.handle('servers-list', () => {
+  return loadServers().map(s => ({ ...s, running: runningServers.has(s.id) }));
+});
+ipcMain.handle('server-add', (_, data) => {
+  const list = loadServers();
+  const s = {
+    id: 'srv-' + Date.now().toString(36),
+    name: String(data?.name || 'Servidor').slice(0, 40),
+    type: ['minecraft-java', 'hytale-steamcmd', 'custom'].includes(data?.type) ? data.type : 'minecraft-java',
+    version: String(data?.version || '26.3'),
+    ram: String(data?.ram || '2G'),
+    port: +(data?.port || 25565),
+    appId: String(data?.appId || ''),
+    exe: String(data?.exe || ''),
+    args: String(data?.args || ''),
+    createdAt: Date.now()
+  };
+  list.push(s); saveServers(list);
+  return s;
+});
+ipcMain.handle('server-delete', (_, id) => {
+  const r = runningServers.get(id);
+  if (r) throw new Error('Pare o servidor antes de excluir.');
+  saveServers(loadServers().filter(s => s.id !== id));
+  return true;
+});
+ipcMain.handle('server-log-get', (_, id) => (runningServers.get(id)?.log || []).join('\n'));
+
+async function ensureSteamCmd() {
+  const dir = path.join(userData(), 'tools', 'steamcmd');
+  const exe = path.join(dir, 'steamcmd.exe');
+  if (!fs.existsSync(exe)) {
+    const zip = path.join(userData(), '.cache', 'steamcmd.zip');
+    await downloadFile('https://media.steampowered.com/installer/steamcmd.zip', zip, 'SteamCMD');
+    fs.mkdirSync(dir, { recursive: true });
+    execFileSync('powershell.exe', ['-NoProfile', '-Command', `Expand-Archive -Path '${zip}' -DestinationPath '${dir}' -Force`], { stdio: 'ignore', timeout: 120000 });
+    fs.rmSync(zip, { force: true });
+  }
+  return exe;
+}
+
+async function ensureMcServer(s) {
+  const dir = serverDir(s);
+  fs.mkdirSync(dir, { recursive: true });
+  const jar = path.join(dir, 'server.jar');
+  const marker = path.join(dir, '.version');
+  const need = !fs.existsSync(jar) || (fs.existsSync(marker) ? fs.readFileSync(marker, 'utf8') !== s.version : true);
+  if (need) {
+    slog(s.id, `Baixando servidor Minecraft ${s.version}...`);
+    const m = await (await fetchT('https://piston-meta.mojang.com/mc/game/version_manifest_v2.json')).json();
+    const v = (m.versions || []).find(x => x.id === s.version && x.type === 'release');
+    if (!v) throw new Error('Versão inválida: ' + s.version);
+    const j = await (await fetchT(v.url)).json();
+    const url = j.downloads?.server?.url;
+    if (!url) throw new Error('Sem server.jar p/ ' + s.version + ' (versão muito antiga?).');
+    await downloadFile(url, jar, `Servidor ${s.version}`);
+    fs.writeFileSync(marker, s.version);
+  }
+  const eula = path.join(dir, 'eula.txt');
+  if (!fs.existsSync(eula)) fs.writeFileSync(eula, '# Auto-aceito pelo Obsidian Launcher\neula=true\n');
+  const props = path.join(dir, 'server.properties');
+  if (!fs.existsSync(props)) fs.writeFileSync(props, `server-port=${s.port}\nmax-players=20\nonline-mode=false\nmotd=Obsidian Server - ${s.name}\n`);
+  return jar;
+}
+
+ipcMain.handle('server-start', async (_, id) => {
+  if (runningServers.has(id)) return { already: true };
+  const s = loadServers().find(x => x.id === id);
+  if (!s) throw new Error('Servidor não encontrado.');
+  const { spawn } = require('child_process');
+  let cmd, args, cwd;
+  if (s.type === 'minecraft-java') {
+    const jar = await ensureMcServer(s);
+    const java = await ensureJava(await getRequiredJava(s.version));
+    cmd = java; args = [`-Xmx${s.ram}`, '-jar', jar, 'nogui']; cwd = serverDir(s);
+  } else if (s.type === 'hytale-steamcmd') {
+    if (!s.appId) throw new Error('Falta o App ID do servidor Hytale (edite o servidor).');
+    const steam = await ensureSteamCmd();
+    const dir = serverDir(s);
+    fs.mkdirSync(dir, { recursive: true });
+    slog(id, 'Atualizando servidor Hytale via SteamCMD...');
+    execFileSync(steam, ['+force_install_dir', dir, '+login', 'anonymous', '+app_update', s.appId, 'validate', '+quit'], { stdio: 'ignore', timeout: 1800000 });
+    const exe = s.exe ? path.join(dir, s.exe) : fs.readdirSync(dir, { recursive: true }).find(f => /hytale.*server.*\.exe$/i);
+    if (!exe || !fs.existsSync(path.join(dir, exe))) throw new Error('Executável do servidor não achado. Ajuste o campo exe.');
+    cmd = path.join(dir, exe); args = (s.args || '').split(' ').filter(Boolean); cwd = dir;
+  } else {
+    if (!s.exe || !fs.existsSync(s.exe)) throw new Error('Executável inválido.');
+    cmd = s.exe; args = (s.args || '').split(' ').filter(Boolean); cwd = path.dirname(s.exe);
+  }
+  slog(id, `Iniciando: ${cmd} ${args.join(' ')}`);
+  const proc = spawn(cmd, args, { cwd, windowsHide: true });
+  runningServers.set(id, { proc, log: [] });
+  proc.stdout.on('data', (d) => String(d).split('\n').forEach(l => l.trim() && slog(id, l)));
+  proc.stderr.on('data', (d) => String(d).split('\n').forEach(l => l.trim() && slog(id, l)));
+  proc.on('exit', (code) => { runningServers.delete(id); slog(id, `--- processo encerrou (código ${code}) ---`); win?.webContents.send('server-state', { id, running: false }); });
+  proc.on('error', (e) => { runningServers.delete(id); slog(id, 'ERRO: ' + e.message); win?.webContents.send('server-state', { id, running: false }); });
+  win?.webContents.send('server-state', { id, running: true });
+  return { started: true };
+});
+
+ipcMain.handle('server-stop', (_, id) => {
+  const r = runningServers.get(id);
+  if (!r) return { stopped: false };
+  try { r.proc.stdin.write('stop\n'); } catch {}
+  setTimeout(() => { try { r.proc.kill('SIGKILL'); } catch {} }, 8000).unref?.();
+  return { stopping: true };
+});
+ipcMain.handle('server-cmd', (_, id, cmd) => {
+  const r = runningServers.get(id);
+  if (!r) throw new Error('Servidor parado.');
+  r.proc.stdin.write(String(cmd).slice(0, 500) + '\n');
+  return true;
+});
+
 ipcMain.handle('repair-version', async () => {
   // Apaga versão/natives p/ baixar tudo do zero (cura arquivos corrompidos)
   const s = getSettings();

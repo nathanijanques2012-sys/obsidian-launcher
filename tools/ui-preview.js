@@ -37,6 +37,14 @@ contextBridge.exposeInMainWorld('api', {
   friendPing: async () => ({ online: false }),
   inviteCreate: async () => ({ code: 'OBS1-X', mc: '26.3' }),
   inviteAccept: async () => ({ nick: 'X', address: 'y' }),
+  serversList: async () => [],
+  serverAdd: async (d) => ({ id: 'x', name: d.name }),
+  serverDelete: async () => true,
+  serverStart: async () => ({ started: true }),
+  serverStop: async () => ({}),
+  serverCmd: async () => true,
+  serverLogGet: async () => '',
+  onServerLog: () => {}, onServerState: () => {},
   skinList: async () => ({ skins: [
 ${skins},
     { name: 'minha-skin', file: 'minha.png', preset: false, url: 'data:image/png;base64,${fs.readFileSync(path.join(dir, 'ninja.png')).toString('base64')}' }
@@ -110,5 +118,10 @@ app.whenReady().then(async () => {
   img = await win.webContents.capturePage();
   require('fs').writeFileSync(path.join(__dirname, 'ui-friends.png'), img.toPNG());
   console.log('friends ok');
+  await win.webContents.executeJavaScript(`document.querySelector('[data-page="servers"]').click()`);
+  await new Promise(r => setTimeout(r, 2500));
+  img = await win.webContents.capturePage();
+  require('fs').writeFileSync(path.join(__dirname, 'ui-servers.png'), img.toPNG());
+  console.log('servers ok');
   app.exit(0);
 });

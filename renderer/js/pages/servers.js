@@ -1,0 +1,121 @@
+/**
+ * Page: Servidores (Minecraft Java, Hytale via SteamCMD, custom)
+ */
+import { API } from '../utils/api.js';
+import { toast } from '../utils/toast.js';
+
+let current = null;
+
+export async function init() {
+  setupButtons();
+  wireConsole();
+  await refreshServers();
+}
+
+export async function render() {
+  await refreshServers();
+}
+
+function setupButtons() {
+  const b = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+  b('btnSrvAdd', addServer);
+  b('btnSrvCmd', sendCmd);
+  const inp = document.getElementById('srvCmd');
+  if (inp) inp.onkeydown = (e) => { if (e.key === 'Enter') sendCmd(); };
+}
+
+function wireConsole() {
+  API.onServerLog(({ id, line }) => {
+    if (id !== current) return;
+    const box = document.getElementById('srvConsole');
+    if (!box) return;
+    box.textContent += line + '\n';
+    box.scrollTop = box.scrollHeight;
+  });
+  API.onServerState(({ id, running }) => {
+    if (id === current && !running) toast.success('Servidor parou', id);
+    refreshServers();
+  });
+}
+
+const typeName = { 'minecraft-java': 'MC Java', 'hytale-steamcmd': 'Hytale', 'custom': 'Custom' };
+
+async function refreshServers() {
+  const box = document.getElementById('servers');
+  if (!box) return;
+  let list = [];
+  try { list = await API.serversList(); }
+  catch (e) { box.innerHTML = '<span class="muted">Erro: ' + e.message + '</span>'; return; }
+  if (!current && list.some(s => s.running)) current = list.find(s => s.running).id;
+  const nameEl = document.getElementById('srvConsoleName');
+  if (nameEl) { const c = list.find(s => s.id === current); nameEl.textContent = c ? c.name : ''; }
+  box.innerHTML = list.map(s => `
+    <div class="mod" style="padding:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div><b>${escapeHtml(s.name)}</b>
+        <span class="chip">${typeName[s.type] || s.type}</span>
+        <span class="muted">${escapeHtml(s.version || '')} :${s.port || ''} ${s.running ? '🟢' : '⚫'}</span>
+      </div>
+      <div class="login-row">
+        <button data-view="${s.id}" class="ghost">Console</button>
+        ${s.running
+          ? `<button data-stop="${s.id}" class="primary" style="background:linear-gradient(180deg,#ef4444,#b91c1c)">Parar</button>`
+          : `<button data-start="${s.id}" class="primary">Iniciar</button>
+             <button data-del="${s.id}" class="ghost">Excluir</button>`}
+      </div>
+    </div>`).join('') || '<span class="muted">Nenhum servidor. Crie o primeiro acima (ex: Minecraft 26.3).</span>';
+  box.querySelectorAll('[data-view]').forEach(x => x.onclick = async () => {
+    current = x.dataset.view;
+    const el = document.getElementById('srvConsole');
+    try { if (el) el.textContent = await API.serverLogGet(current); } catch (e) { if (el) el.textContent = 'Erro: ' + e.message; }
+    const c = (await API.serversList()).find(v => v.id === current);
+    if (nameEl) nameEl.textContent = c ? c.name : '';
+  });
+  box.querySelectorAll('[data-start]').forEach(x => x.onclick = async () => {
+    x.disabled = true;
+    try { await API.serverStart(x.dataset.start); current = x.dataset.start; toast.success('Iniciando servidor...', 'Acompanhe no console'); }
+    catch (e) { toast.error('Falha ao iniciar', e.message); }
+    x.disabled = false;
+    refreshServers();
+  });
+  box.querySelectorAll('[data-stop]').forEach(x => x.onclick = async () => {
+    try { await API.serverStop(x.dataset.stop); } catch (e) { toast.error('Erro', e.message); }
+    refreshServers();
+  });
+  box.querySelectorAll('[data-del]').forEach(x => x.onclick = async () => {
+    try { await API.serverDelete(x.dataset.del); refreshServers(); }
+    catch (e) { toast.error('Erro', e.message); }
+  });
+}
+
+async function addServer() {
+  const name = document.getElementById('srvName').value.trim() || 'Servidor';
+  const type = document.getElementById('srvType').value;
+  const version = document.getElementById('srvVersion').value.trim() || '26.3';
+  const port = document.getElementById('srvPort').value.trim() || '25565';
+  const extra = document.getElementById('srvExtra').value.trim();
+  try {
+    const s = await API.serverAdd({
+      name, type, version, port,
+      appId: type === 'hytale-steamcmd' ? extra : '',
+      exe: type === 'custom' ? extra : ''
+    });
+    toast.success('Servidor criado', s.name);
+    document.getElementById('srvName').value = '';
+    document.getElementById('srvExtra').value = '';
+    refreshServers();
+  } catch (e) { toast.error('Erro', e.message); }
+}
+
+async function sendCmd() {
+  const inp = document.getElementById('srvCmd');
+  if (!current) return toast.warning('Sem servidor', 'Clique em Console de um servidor rodando');
+  if (!inp.value.trim()) return;
+  try { await API.serverCmd(current, inp.value); inp.value = ''; }
+  catch (e) { toast.error('Erro', e.message); }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>').replace(/"/g, '"');
+}
+
+export default { init, render };
