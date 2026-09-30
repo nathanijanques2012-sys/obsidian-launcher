@@ -55,8 +55,10 @@ public class OverlayModForge {
       while (openMenu != null && openMenu.consumeClick()) {
         mc.setScreen(new OverlayScreenForge());
       }
-      // Troca a TitleScreen vanilla pelo menu Obsidian estilo CMClient
-      if (mc.screen == null && false) { /* placeholder */ }
+      // Garante o menu Obsidian mesmo se o evento de abertura falhar no 1º frame
+      if (mc.screen instanceof TitleScreen && !(mc.screen instanceof ObsidianMenuScreenForge)) {
+        mc.setScreen(new ObsidianMenuScreenForge());
+      }
     }
 
     @SubscribeEvent
