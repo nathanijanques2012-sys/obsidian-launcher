@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('api', {
   launch: async () => true,
   stopGame: async () => ({ killed: 0 }),
   onGameStarted: () => {}, onGameClosed: () => {},
+  bedrockStatus: async () => ({ installed: false }),
+  bedrockLaunch: async () => true,
   searchModrinth: async () => ({ hits: [] }),
   modDownload: async () => ({ file: 'x.jar', version: '1.0', skipped: false }),
   contentDownload: async () => ({ file: 'x.zip', version: '1.0', skipped: false }),

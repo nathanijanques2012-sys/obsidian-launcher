@@ -222,6 +222,8 @@ export const API = {
   serverLogGet: (id) => apiCall('serverLogGet', id),
   onServerLog: (cb) => window.api.onServerLog(cb),
   onServerState: (cb) => window.api.onServerState(cb),
+  bedrockStatus: () => apiCall('bedrockStatus'),
+  bedrockLaunch: () => apiCall('bedrockLaunch'),
   
   // Skins
   skinList: () => apiCall('skinList'),

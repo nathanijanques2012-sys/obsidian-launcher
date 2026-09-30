@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('api', {
   launch: async () => true,
   stopGame: async () => ({ killed: 0 }),
   onGameStarted: () => {}, onGameClosed: () => {},
+  bedrockStatus: async () => ({ installed: false }),
+  bedrockLaunch: async () => true,
   searchModrinth: async () => ({ hits: [] }),
   modDownload: async () => ({ file: 'x.jar', version: '1.0', skipped: false }),
   contentDownload: async () => ({ file: 'x.zip', version: '1.0', skipped: false }),
@@ -123,5 +125,10 @@ app.whenReady().then(async () => {
   img = await win.webContents.capturePage();
   require('fs').writeFileSync(path.join(__dirname, 'ui-servers.png'), img.toPNG());
   console.log('servers ok');
+  await win.webContents.executeJavaScript(`document.querySelector('[data-page="bedrock"]').click()`);
+  await new Promise(r => setTimeout(r, 2500));
+  img = await win.webContents.capturePage();
+  require('fs').writeFileSync(path.join(__dirname, 'ui-bedrock.png'), img.toPNG());
+  console.log('bedrock ok');
   app.exit(0);
 });

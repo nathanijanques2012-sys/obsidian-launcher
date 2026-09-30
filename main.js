@@ -918,6 +918,21 @@ async function installModpack(projectId, mcVersion) {
 ipcMain.handle('check-update', () => { setupAutoUpdate(true); return true; });
 ipcMain.handle('quit-and-install', () => { try { autoUpdater.quitAndInstall(); } catch {} return true; });
 
+// ---------- Minecraft Bedrock (Store) ----------
+// Bedrock PC = app da Microsoft Store (conta Xbox, sem modo offline).
+ipcMain.handle('bedrock-status', () => {
+  try {
+    const out = execSync('powershell.exe -NoProfile -Command "(Get-AppxPackage Microsoft.MinecraftUWP | Select-Object -First 1 Version,InstallLocation | ConvertTo-Json -Compress)"', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 20000 }).trim();
+    if (!out) return { installed: false };
+    const j = JSON.parse(out);
+    return { installed: true, version: `${j.Version.Major}.${j.Version.Minor}.${j.Version.Build}` };
+  } catch { return { installed: false }; }
+});
+ipcMain.handle('bedrock-launch', async () => {
+  await shell.openExternal('minecraft://');
+  return true;
+});
+
 // ---------- Servidores (MC Java + Hytale via SteamCMD + custom) ----------
 const serversPath = () => path.join(userData(), 'servers.json');
 function loadServers() { try { const a = JSON.parse(fs.readFileSync(serversPath(), 'utf8')); return Array.isArray(a) ? a : []; } catch { return []; } }

@@ -20,6 +20,7 @@
       <button class="nav" data-page="skins">🎭 Skins</button>
       <button class="nav" data-page="friends">👥 Amigos</button>
       <button class="nav" data-page="servers">🖥️ Servidores</button>
+      <button class="nav" data-page="bedrock">🧱 Bedrock</button>
       <button class="nav" data-page="themes">🎨 Tema</button>
       <button class="nav" data-page="config">⚙ Config</button>
       <button class="nav" data-page="about">ⓘ Sobre</button>
@@ -257,8 +258,7 @@
       </div>
     </section>
 
-    <section id="page-servers" class="page">
-      <div class="card">
+    <section id="page-servers" class="page">      <div class="card">
         <h2>Servidores <span class="chip">MC Java • Hytale</span></h2>
         <p class="muted">Suba seu próprio servidor e jogue com amigos. Minecraft baixa tudo sozinho. Hytale precisa do App ID SteamCMD.</p>
         <div class="login-row">
@@ -284,6 +284,22 @@
           <input id="srvCmd" placeholder="comando (ex: say oi, stop, list...)" style="flex:1">
           <button id="btnSrvCmd" class="primary">Enviar</button>
         </div>
+      </div>
+    </section>
+
+    <section id="page-bedrock" class="page">
+      <div class="card">
+        <h2>Bedrock <span class="chip">Store</span></h2>
+        <p class="muted">Bedrock de PC é o app da Microsoft Store (conta Xbox — sem modo offline, é regra da Microsoft).</p>
+        <div id="bedrockInfo" class="muted">Verificando...</div>
+        <div class="login-row" style="margin-top:10px">
+          <button id="btnBedrockPlay" class="primary">Abrir Minecraft Bedrock</button>
+          <button id="btnBedrockRefresh" class="ghost">Verificar de novo</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Servidor Bedrock dedicado</h2>
+        <p class="muted">Baixe o servidor oficial em minecraft.net/download/server/bedrock, extraia e crie abaixo como <b>Programa custom</b> apontando o <code>bedrock_server.exe</code>.</p>
       </div>
     </section>
 

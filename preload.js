@@ -45,6 +45,8 @@ contextBridge.exposeInMainWorld('api', {
   serverLogGet: (id) => ipcRenderer.invoke('server-log-get', id),
   onServerLog: (cb) => ipcRenderer.on('server-log', (_, v) => cb(v)),
   onServerState: (cb) => ipcRenderer.on('server-state', (_, v) => cb(v)),
+  bedrockStatus: () => ipcRenderer.invoke('bedrock-status'),
+  bedrockLaunch: () => ipcRenderer.invoke('bedrock-launch'),
   skinsLibrary: () => ipcRenderer.invoke('skins-library'),
   skinImport: () => ipcRenderer.invoke('skin-import'),
   skinApply: (n, m) => ipcRenderer.invoke('skin-apply', n, m),
