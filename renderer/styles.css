@@ -946,3 +946,35 @@ input[type="range"]::-moz-range-thumb {
 #bgImagePreview {
   background-image: none !important;
 }
+/* ===== Obsidian Roundness Pass: nada quadrado ===== */
+:root { --r-sm: 12px; --r-md: 20px; --r-lg: 26px; --r-pill: 999px; }
+.card, .page .card { border-radius: var(--r-lg); }
+.nav { border-radius: var(--r-md); }
+.nav.active { box-shadow: 0 0 0 1px var(--acc2), 0 4px 18px #7c3aed44; }
+button { border-radius: var(--r-md); transition: transform .12s ease, filter .15s ease, box-shadow .2s ease; }
+button:hover { transform: translateY(-1px); }
+button:active { transform: translateY(1px) scale(.99); }
+input, select { border-radius: var(--r-md); }
+input:focus, select:focus { box-shadow: 0 0 0 3px #a855f744; }
+.chip { border-radius: var(--r-pill); }
+.bar, #barFill { border-radius: var(--r-pill); }
+#log, pre#log { border-radius: var(--r-md); }
+.mod, .skin-card, .friend-card { border-radius: var(--r-md); }
+.mod:hover, .skin-card:hover { transform: translateY(-2px); }
+.gallery { gap: 12px; }
+.logo-img, .hero-logo { border-radius: 22px !important; }
+.sidebar .account { border-radius: var(--r-md); }
+.hero { border-radius: 28px; }
+.hero-actions select, .login-row input, .login-row select, .login-row button { border-radius: var(--r-md); }
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-thumb, ::-webkit-scrollbar-track { border-radius: var(--r-pill); }
+.page { animation: pageIn .22s ease; }
+@keyframes pageIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .page { animation: none; } * { transition: none !important; } }
+.friend-avatar { border-radius: 50%; }
+.toast, .toast-container .toast { border-radius: var(--r-md); }
+dialog, .modal, .dialog { border-radius: var(--r-lg); }
+.preset-theme, .preset-preview { border-radius: var(--r-md); }
+input[type=color] { border-radius: var(--r-md); padding: 2px; }
+table { border-radius: var(--r-md); overflow: hidden; }
+.skeleton, .skeleton-avatar, .skeleton-list { border-radius: var(--r-md); }

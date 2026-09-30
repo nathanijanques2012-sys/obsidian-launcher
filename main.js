@@ -280,6 +280,16 @@ function createWindow() {
   });
   // __dirname = project root (dev) ou resources/app (pack, asar desligado)
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  // Espelha o log do jogo em arquivo (diagnóstico remoto)
+  try {
+    const _send = win.webContents.send.bind(win.webContents);
+    win.webContents.send = (ch, ...args) => {
+      if (ch === 'launch-log') {
+        try { fs.appendFileSync(path.join(userData(), 'launcher.log'), `[${new Date().toISOString()}] ${args[0]}\n`); } catch {}
+      }
+      return _send(ch, ...args);
+    };
+  } catch {}
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
 }
 
