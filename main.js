@@ -242,6 +242,35 @@ function getOverlayForgeJar() {
   return fs.existsSync(p) ? p : null;
 }
 
+function jarTag(p) {
+  // hash curto p/ saber no log qual build entrou no jogo
+  try {
+    const crypto = require('crypto');
+    return crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex').slice(0, 8);
+  } catch { return '?'; }
+}
+
+function syncOverlayJar(modsDir, srcPath, pattern) {
+  // Remove cópias velhas (qualquer nome que bata o padrão) e instala a atual.
+  // Sem isso, build velha na pasta vence a nova e o menu nunca muda.
+  if (!srcPath || !fs.existsSync(srcPath)) return null;
+  fs.mkdirSync(modsDir, { recursive: true });
+  const want = path.basename(srcPath);
+  let removed = 0;
+  for (const f of fs.readdirSync(modsDir)) {
+    if (pattern.test(f) && f !== want) {
+      try { fs.unlinkSync(path.join(modsDir, f)); removed++; } catch {}
+    }
+  }
+  const dest = path.join(modsDir, want);
+  const tag = jarTag(srcPath);
+  if (!fs.existsSync(dest) || jarTag(dest) !== tag) {
+    fs.copyFileSync(srcPath, dest);
+    win?.webContents.send('launch-log', `Overlay atualizado (${tag}) ✓`);
+  }
+  return { file: dest, tag };
+}
+
 async function ensureFabric(root, mcVersion) {
   // Baixa profile Fabric oficial (meta.fabricmc.net) p/ versions/
   const loaders = await (await fetch(`https://meta.fabricmc.net/v2/versions/loader/${mcVersion}`)).json();
@@ -259,15 +288,8 @@ async function ensureFabric(root, mcVersion) {
 }
 
 function ensureOverlay(root) {
-  const src = getOverlayJar();
-  if (!src) return null;
-  const mods = path.join(root, 'mods');
-  fs.mkdirSync(mods, { recursive: true });
-  const dest = path.join(mods, 'obsidian-overlay.jar');
-  if (!fs.existsSync(dest) || fs.statSync(src).size !== fs.statSync(dest).size) {
-    fs.copyFileSync(src, dest);
-  }
-  return dest;
+  const r = syncOverlayJar(path.join(root, 'mods'), getOverlayJar(), /^obsidian-overlay(?!-forge).*\.jar$/);
+  return r ? r.file : null;
 }
 
 function createWindow() {
@@ -459,8 +481,7 @@ ipcMain.handle('launch', async (_, opts = {}) => {
     if (settings.overlay && /^1\.21(\.|$)/.test(settings.version)) {
       const o = ensureOverlay(settings.gameDir);
       win?.webContents.send('launch-log', o ? 'Overlay Obsidian ativo ✓' : 'Overlay .jar não encontrado (rode build do obsidian-mod)');
-    } else if (settings.overlay) {
-      win?.webContents.send('launch-log', 'Overlay só existe p/ 1.21 (pulando) — resto funciona normal.');
+    } else if (settings.overlay) {      win?.webContents.send('launch-log', 'Overlay só existe p/ 1.21 (pulando) — resto funciona normal.');
     }
   } else if (settings.loader === 'forge' || settings.loader === 'optifine') {
     if (settings.loader === 'optifine') {
@@ -472,14 +493,8 @@ ipcMain.handle('launch', async (_, opts = {}) => {
     }
     if (settings.overlay && settings.version === '1.21.1') {
       // Overlay Forge (mesmo menu/HUD/amigos do Fabric)
-      const src = getOverlayForgeJar();
-      if (src) {
-        const mods = path.join(settings.gameDir, 'mods');
-        fs.mkdirSync(mods, { recursive: true });
-        const dest = path.join(mods, 'obsidian-overlay-forge.jar');
-        if (!fs.existsSync(dest) || fs.statSync(src).size !== fs.statSync(dest).size) fs.copyFileSync(src, dest);
-        win?.webContents.send('launch-log', 'Overlay Obsidian (Forge) ativo ✓');
-      }
+      const r = syncOverlayJar(path.join(settings.gameDir, 'mods'), getOverlayForgeJar(), /^obsidian-overlay-forge.*\.jar$/);
+      win?.webContents.send('launch-log', r ? `Overlay Obsidian (Forge ${r.tag}) ativo ✓` : 'Overlay .jar não encontrado (rode build do obsidian-mod-forge)');
     }
   }
 
