@@ -67,7 +67,12 @@ async function refreshSkins() {
         if (skinMsg) skinMsg.textContent = 'Aplicando...';
         try {
           const variant = document.getElementById('skinVariant').value;
-          const r = await API.skinApply(b.dataset.use, variant);
+          const loaderEl = document.getElementById('loader');
+          const versionEl = document.getElementById('version');
+          const r = await API.skinApply(b.dataset.use, variant, {
+            loader: loaderEl ? loaderEl.value : undefined,
+            mcVersion: versionEl ? versionEl.value : undefined
+          });
           if (skinMsg) skinMsg.textContent = r.msg;
           toast.success('Skin aplicada', r.msg);
           refreshSkins();

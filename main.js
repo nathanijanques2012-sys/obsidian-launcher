@@ -25,6 +25,10 @@ function saveJson(p, data) {
   fs.mkdirSync(path.dirname(p), { recursive: true });
   fs.writeFileSync(p, JSON.stringify(data, null, 2));
 }
+function logAction(m) {
+  // Diagnóstico de ações (skin, modpack, tunnel): vai p/ launcher.log
+  try { fs.appendFileSync(path.join(userData(), 'launcher.log'), `[${new Date().toISOString()}] [acao] ${m}\n`); } catch {}
+}
 
 async function fetchT(url, opts = {}, ms = 45000) {
   // fetch com timeout p/ o JOGAR nunca travar mudo numa API lenta
@@ -1003,6 +1007,7 @@ ipcMain.handle('modpack-install-code', async (_, code) => {
   try { payload = JSON.parse(Buffer.from(raw.slice(5), 'base64url').toString('utf8')); }
   catch { throw new Error('Código inválido.'); }
   if (!payload || !Array.isArray(payload.mods)) throw new Error('Código inválido.');
+  logAction(`modpack-install ${payload.mods.length} mods loader=${payload.loader} mc=${payload.game}`);
   const ok = [], fail = [];
   for (const pid of payload.mods.slice(0, 60)) {
     try {
@@ -1016,6 +1021,7 @@ ipcMain.handle('modpack-install-code', async (_, code) => {
       ok.push(file.filename);
     } catch (e) { fail.push(pid + ': ' + e.message); }
   }
+  logAction(`modpack-install fim ok=${ok.length} fail=${fail.length}${fail.length ? ' [' + fail.slice(0, 3).join(' | ') + ']' : ''}`);
   return { ok, fail, game: payload.game, loader: payload.loader };
 });
 
@@ -1447,7 +1453,7 @@ ipcMain.handle('skin-delete', (_, file) => {
   if (s.selectedSkin === path.basename(file)) saveJson(settingsPath(), { ...s, selectedSkin: null });
   return true;
 });
-ipcMain.handle('skin-apply', async (_, file, variant = 'classic') => {
+ipcMain.handle('skin-apply', async (_, file, variant = 'classic', extra = {}) => {
   variant = variant === 'slim' ? 'slim' : 'classic';
   const accounts = loadJson(accountsPath(), []);
   const acc = accounts[0];
@@ -1459,23 +1465,28 @@ ipcMain.handle('skin-apply', async (_, file, variant = 'classic') => {
   if (!fs.existsSync(src)) throw new Error('Skin não encontrada.');
   saveJson(settingsPath(), { ...getSettings(), selectedSkin: base, skinVariant: variant });
   if (acc.type === 'offline') {
-    const loader = getSettings().loader;
-    const mcVersion = getSettings().version;
+    // Usa o loader/versão que está no Jogar (não o salvo, que pode estar velho)
+    const loader = (extra && extra.loader) || getSettings().loader;
+    const mcVersion = (extra && extra.mcVersion) || getSettings().version;
+    logAction(`skin-apply offline nick=${acc.profile.name} loader=${loader} mc=${mcVersion} file=${base}`);
     if (loader === 'fabric') {
       // StraySkins: aplica skin offline dentro do jogo
       await ensureStraySkins(getSettings().gameDir, mcVersion);
       const dir = path.join(getSettings().gameDir, 'strayskins', 'skin');
       fs.mkdirSync(dir, { recursive: true });
       fs.copyFileSync(src, path.join(dir, acc.profile.name + '.png'));
+      logAction('skin OK fabric');
       return { offline: true, msg: `Skin aplicada p/ ${acc.profile.name} ✓ Carrega sozinha ao entrar no mundo.` };
     }
     if (loader === 'forge' || loader === 'optifine') {
       // CustomSkinLoader lê <gameDir>/CustomSkinLoader/LocalSkin/skins/Nick.png
       // (a config padrão dele já inclui LocalSkin na lista)
-      await ensureCustomSkinLoader(getSettings().gameDir, mcVersion);
+      const csl = await ensureCustomSkinLoader(getSettings().gameDir, mcVersion);
+      if (!csl) throw new Error(`Sem mod de skin p/ ${loader} ${mcVersion}. Troque a versão no Jogar.`);
       const dir = path.join(getSettings().gameDir, 'CustomSkinLoader', 'LocalSkin', 'skins');
       fs.mkdirSync(dir, { recursive: true });
       fs.copyFileSync(src, path.join(dir, acc.profile.name + '.png'));
+      logAction('skin OK forge/customskinloader');
       return { offline: true, msg: `Skin aplicada p/ ${acc.profile.name} ✓ (se não aparecer no jogo, digite /csl reload).` };
     }
     throw new Error('Skin offline não funciona no Vanilla (sem mods o jogo usa a skin padrão). Troque p/ Fabric ou Forge no Jogar.');

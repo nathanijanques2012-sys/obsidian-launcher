@@ -61,7 +61,7 @@ contextBridge.exposeInMainWorld('api', {
   bedrockLaunch: () => ipcRenderer.invoke('bedrock-launch'),
   skinsLibrary: () => ipcRenderer.invoke('skins-library'),
   skinImport: () => ipcRenderer.invoke('skin-import'),
-  skinApply: (n, m) => ipcRenderer.invoke('skin-apply', n, m),
+  skinApply: (n, m, x) => ipcRenderer.invoke('skin-apply', n, m, x),
   onLog: (cb) => ipcRenderer.on('launch-log', (_, v) => cb(v)),
   onProgress: (cb) => ipcRenderer.on('launch-progress', (_, v) => cb(v)),
   onUpdateStatus: (cb) => ipcRenderer.on('update-status', (_, v) => cb(v)),

@@ -248,7 +248,7 @@ export const API = {
   skinList: () => apiCall('skinList'),
   skinImport: () => apiCall('skinImport'),
   skinDelete: (file) => apiCall('skinDelete', file),
-  skinApply: (file, variant) => apiCall('skinApply', file, variant),
+  skinApply: (file, variant, extra) => apiCall('skinApply', file, variant, extra),
   
   // Friends
   friendsList: () => apiCall('friendsList'),
