@@ -41,8 +41,8 @@ export async function apiCall(method, ...args) {
   const key = cacheKey(method, ...args);
   const cached = cache.get(key);
   
-  // Cache hit para métodos GET-like
-  if (cached && isCacheValid(cached) && method !== 'launch' && method !== 'saveSettings') {
+  // Cache hit para métodos GET-like (playitStatus é estado vivo: nunca cacheia)
+  if (cached && isCacheValid(cached) && method !== 'launch' && method !== 'saveSettings' && method !== 'playitStatus') {
     return cached.data;
   }
 
@@ -91,26 +91,28 @@ export async function apiCall(method, ...args) {
  * Invalida cache relacionado a uma mutation
  */
 function invalidateRelatedCache(method, args) {
+  // ATENÇÃO: a chave de cache é `método:args` com o nome EXATO passado ao
+  // apiCall (camelCase). Padrão com hífen nunca batia e o cache de 5min
+  // escondia downloads/exclusões (era o bug do Excluir que "não excluía").
   const patterns = [];
-  
+
   if (method === 'modDownload' || method === 'modDelete') {
-    patterns.push('mods-list', 'search-modrinth');
+    patterns.push('modsList', 'searchModrinth');
   }
   if (method === 'contentDownload' || method === 'contentDelete') {
-    const kind = args[0];
-    patterns.push(`content-list:${kind}`);
+    patterns.push('contentList');
   }
   if (method === 'friendAdd' || method === 'friendDelete') {
-    patterns.push('friends-list');
+    patterns.push('friendsList');
   }
   if (method === 'skinImport' || method === 'skinDelete' || method === 'skinApply') {
-    patterns.push('skin-list');
+    patterns.push('skinList');
   }
   if (method === 'serverAdd' || method === 'serverDelete' || method === 'serverSetAddress') {
-    patterns.push('serversList', 'servers-list');
+    patterns.push('serversList');
   }
   if (method === 'saveSettings') {
-    patterns.push('get-settings');
+    patterns.push('getSettings');
   }
   
   for (const [key] of cache.entries()) {
