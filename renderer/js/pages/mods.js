@@ -39,6 +39,23 @@ export async function init({ state, API, toast, VirtualList, Skeleton, debounce,
   
   // Inicializa virtual list para instalados
   initInstalledVirtualList();
+  bindDelete();
+}
+
+function bindDelete() {
+  // Delegação no container: sobrevive aos re-renders do VirtualList.
+  const container = document.getElementById('modsInstalled');
+  if (!container || container.dataset.delBound) return;
+  container.dataset.delBound = '1';
+  container.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-del]');
+    if (!b) return;
+    try {
+      await API.modDelete(b.dataset.del);
+      toast.success('Excluído', b.dataset.del);
+      await refreshModsList();
+    } catch (err) { toast.error('Erro ao excluir', err.message); }
+  });
 }
 
 export async function render() {
@@ -90,7 +107,9 @@ async function refreshModsList() {
   showSkeleton(container, createListSkeletonLines(5));
   
   try {
-    const list = await API.modsList();
+    // Mods internos do launcher (overlay) não aparecem aqui: quem manda
+    // neles é a caixinha "Ativar overlay Obsidian" na Config.
+    const list = (await API.modsList()).filter(m => !/^obsidian-overlay.*\.jar$/i.test(m.name));
     if (countEl) countEl.textContent = list.length;
 
     // Recria sempre: o skeleton acima destrói o DOM interno do VirtualList

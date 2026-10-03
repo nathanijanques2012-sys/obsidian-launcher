@@ -32,6 +32,23 @@ export async function init({ state, API, toast, VirtualList, Skeleton, createSea
   
   setupButtons();
   initInstalledVirtualList();
+  bindDelete();
+}
+
+function bindDelete() {
+  // Delegação no container: sobrevive aos re-renders do VirtualList.
+  const container = document.getElementById('packsInstalled');
+  if (!container || container.dataset.delBound) return;
+  container.dataset.delBound = '1';
+  container.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-del]');
+    if (!b) return;
+    try {
+      await API.contentDelete('resourcepack', b.dataset.del);
+      toast.success('Excluído', b.dataset.del);
+      await refreshInstalled();
+    } catch (err) { toast.error('Erro ao excluir', err.message); }
+  });
 }
 
 export async function render() {
@@ -65,18 +82,17 @@ async function refreshInstalled() {
     const list = await API.contentList('resourcepack');
     if (countEl) countEl.textContent = list.length;
     
-    if (!virtualList) {
-      virtualList = new VirtualList({
-        container,
-        items: list,
-        itemHeight: 64,
-        buffer: 3,
-        renderItem: renderInstalledItem,
-        emptyMessage: 'Nenhum resource pack.'
-      });
-    } else {
-      virtualList.setItems(list);
-    }
+    // Recria sempre: o skeleton acima destrói o DOM interno do VirtualList
+    // anterior — setItems escrevia num DOM removido e a tela ficava presa no esqueleto.
+    if (virtualList) { try { virtualList.destroy(); } catch {} virtualList = null; }
+    virtualList = new VirtualList({
+      container,
+      items: list,
+      itemHeight: 64,
+      buffer: 3,
+      renderItem: renderInstalledItem,
+      emptyMessage: 'Nenhum resource pack.'
+    });
   } catch (err) {
     hideSkeleton(container, `<span class="muted">Erro: ${err.message}</span>`);
     toast.error('Erro ao listar packs', err.message);
