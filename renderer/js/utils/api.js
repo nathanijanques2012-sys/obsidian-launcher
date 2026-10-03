@@ -66,7 +66,8 @@ export async function apiCall(method, ...args) {
                         'friendAdd', 'friendDelete', 'inviteCreate', 'inviteAccept', 'friendSync',
                         'skinImport', 'skinDelete', 'skinApply', 'checkUpdate', 'installUpdate', 'repairVersion',
                         'stopGame', 'serverAdd', 'serverDelete', 'serverStart', 'serverStop', 'serverCmd', 'serverSetAddress',
-                        'playitStart', 'playitStop', 'openExternal'].includes(method);
+                        'playitStart', 'playitStop', 'openExternal',
+                        'serverModpackGet', 'serverModpackMeta', 'serverModpackAdd', 'serverModpackRemove', 'serverModpackCode', 'modpackInstallCode'].includes(method);
     
     if (!isMutation) {
       cache.set(key, { data: result, timestamp: Date.now() });
@@ -227,6 +228,12 @@ export const API = {
   playitStatus: () => apiCall('playitStatus'),
   playitStart: () => apiCall('playitStart'),
   playitStop: () => apiCall('playitStop'),
+  serverModpackGet: (id) => apiCall('serverModpackGet', id),
+  serverModpackMeta: (id, loader, mc) => apiCall('serverModpackMeta', id, loader, mc),
+  serverModpackAdd: (id, pid, loader, mc) => apiCall('serverModpackAdd', id, pid, loader, mc),
+  serverModpackRemove: (id, pid) => apiCall('serverModpackRemove', id, pid),
+  serverModpackCode: (id) => apiCall('serverModpackCode', id),
+  modpackInstallCode: (code) => apiCall('modpackInstallCode', code),
   openExternal: (url) => apiCall('openExternal', url),
   onPlayitState: (cb) => window.api.onPlayitState(cb),
   serverLogGet: (id) => apiCall('serverLogGet', id),

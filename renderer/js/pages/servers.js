@@ -120,6 +120,11 @@ async function refreshServers() {
       </div>
       ${s.external ? `<div class="login-row" style="width:100%"><span class="chip">🌍 de fora: ${escapeHtml(s.external)}</span><button data-copyext="${escapeHtml(s.external)}" class="ghost">Copiar</button></div>` : ''}
       ${(s.tunnels || []).map(t => `<div class="login-row" style="width:100%"><span class="chip">🌐 tunnel: ${escapeHtml(t)}</span><button data-tunnel="${escapeHtml(t)}" data-usesrv="${s.id}" class="ghost">Usar</button></div>`).join('')}
+      <div class="login-row" style="width:100%">
+        <button data-mpacks="${s.id}" class="ghost">🧩 Mods (${(s.modpack || []).length})</button>
+        <button data-mpcode="${s.id}" class="ghost">Copiar código</button>
+      </div>
+      <div data-mppanel="${s.id}" style="display:none;width:100%"></div>
       <div class="login-row">
         <button data-view="${s.id}" class="ghost">Console</button>
         ${s.running
@@ -170,6 +175,86 @@ async function refreshServers() {
     catch (e) { toast.error('Erro', e.message); }
     refreshServers();
   });
+  box.querySelectorAll('[data-mpacks]').forEach(x => x.onclick = () => toggleModpackPanel(x.dataset.mpacks));
+  box.querySelectorAll('[data-mpcode]').forEach(x => x.onclick = async () => {
+    try {
+      const r = await API.serverModpackCode(x.dataset.mpcode);
+      await navigator.clipboard.writeText(r.code);
+      toast.success('Código copiado', `${r.count} mod(s) — mande p/ quem for entrar`);
+    } catch (e) { toast.error('Erro', e.message); }
+  });
+}
+
+async function toggleModpackPanel(serverId) {
+  const panel = document.querySelector(`[data-mppanel="${serverId}"]`);
+  if (!panel) return;
+  if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  await renderModpackPanel(serverId);
+}
+
+async function renderModpackPanel(serverId) {
+  const panel = document.querySelector(`[data-mppanel="${serverId}"]`);
+  if (!panel) return;
+  let mp;
+  try { mp = await API.serverModpackGet(serverId); }
+  catch (e) { panel.innerHTML = `<span class="muted">Erro: ${escapeHtml(e.message)}</span>`; return; }
+  panel.innerHTML = `
+    <div class="muted">Mods exigidos p/ entrar (MC ${escapeHtml(mp.game)}):
+      <select data-mploader="${serverId}">
+        <option value="fabric" ${mp.loader === 'fabric' ? 'selected' : ''}>Fabric</option>
+        <option value="forge" ${mp.loader !== 'fabric' ? 'selected' : ''}>Forge</option>
+      </select></div>
+    <div class="login-row" style="margin-top:6px">
+      <input data-mpquery="${serverId}" placeholder="buscar mod (ex: sodium)" style="flex:1">
+      <button data-mpsearch="${serverId}" class="primary">Buscar</button>
+    </div>
+    <div data-mpresults="${serverId}"></div>
+    <div style="display:grid;gap:6px;margin-top:6px">${(mp.mods || []).map(m => `
+      <div class="mod" style="padding:6px 10px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <b>${escapeHtml(m.title)}</b>
+        <button data-mpdel="${serverId}|${escapeHtml(m.project_id)}" class="ghost">Remover</button>
+      </div>`).join('') || '<span class="muted">Nenhum mod exigido.</span>'}</div>`;
+  panel.querySelector('[data-mploader]').onchange = async (e) => {
+    try { await API.serverModpackMeta(serverId, e.target.value); } catch (err) { toast.error('Erro', err.message); }
+  };
+  panel.querySelector('[data-mpsearch]').onclick = async () => {
+    const q = panel.querySelector('[data-mpquery]').value.trim();
+    const res = panel.querySelector('[data-mpresults]');
+    if (q.length < 2) return;
+    res.innerHTML = '<span class="muted">Buscando...</span>';
+    try {
+      const loader = panel.querySelector('[data-mploader]').value;
+      const r = await API.searchModrinth(q, loader, mp.game, 'mod');
+      const hits = r.hits || [];
+      res.innerHTML = hits.map(h => `
+        <div class="mod" style="padding:6px 10px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <span><b>${escapeHtml(h.title)}</b> <span class="muted">⬇ ${h.downloads || 0}</span></span>
+          <button data-mpadd="${serverId}|${escapeHtml(h.project_id)}" class="ghost">Adicionar</button>
+        </div>`).join('') || '<span class="muted">Nada encontrado</span>';
+      res.querySelectorAll('[data-mpadd]').forEach(b => b.onclick = async () => {
+        const [sid, pid] = b.dataset.mpadd.split('|');
+        try {
+          await API.serverModpackAdd(sid, pid, panel.querySelector('[data-mploader]').value, mp.game);
+          toast.success('Mod adicionado', '');
+          await renderModpackPanel(serverId);
+          updateModpackCount(serverId);
+        } catch (err) { toast.error('Erro', err.message); }
+      });
+    } catch (err) { res.innerHTML = `<span class="muted">Erro: ${escapeHtml(err.message)}</span>`; }
+  };
+  panel.querySelectorAll('[data-mpdel]').forEach(b => b.onclick = async () => {
+    const [sid, pid] = b.dataset.mpdel.split('|');
+    try { await API.serverModpackRemove(sid, pid); await renderModpackPanel(serverId); updateModpackCount(serverId); }
+    catch (err) { toast.error('Erro', err.message); }
+  });
+}
+
+function updateModpackCount(serverId) {
+  API.serverModpackGet(serverId).then(mp => {
+    const btn = document.querySelector(`[data-mpacks="${serverId}"]`);
+    if (btn) btn.textContent = `🧩 Mods (${(mp.mods || []).length})`;
+  }).catch(() => {});
 }
 
 async function addServer() {

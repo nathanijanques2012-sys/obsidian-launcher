@@ -939,6 +939,78 @@ ipcMain.handle('content-download', async (_, kind, projectId, loader, mcVersion)
   return { file: file.filename, version, mc, skipped: false };
 });
 
+// ---------- Modpack do servidor (código p/ quem for entrar) ----------
+function getServerModpack(s) {
+  return { loader: s.modLoader || 'fabric', game: s.modMc || s.version, mods: Array.isArray(s.modpack) ? s.modpack : [] };
+}
+ipcMain.handle('server-modpack-get', (_, id) => {
+  const s = loadServers().find(x => x.id === id);
+  if (!s) throw new Error('Servidor não encontrado.');
+  const mp = getServerModpack(s);
+  return { loader: mp.loader, game: mp.game, mods: mp.mods };
+});
+ipcMain.handle('server-modpack-meta', (_, id, loader, mcVersion) => {
+  const list = loadServers();
+  const s = list.find(x => x.id === id);
+  if (!s) throw new Error('Servidor não encontrado.');
+  s.modLoader = loader === 'forge' ? 'forge' : 'fabric';
+  if (mcVersion) s.modMc = String(mcVersion).slice(0, 20);
+  saveServers(list);
+  return true;
+});
+ipcMain.handle('server-modpack-add', async (_, id, projectId, loader, mcVersion) => {
+  const list = loadServers();
+  const s = list.find(x => x.id === id);
+  if (!s) throw new Error('Servidor não encontrado.');
+  s.modLoader = loader === 'forge' ? 'forge' : 'fabric';
+  if (mcVersion) s.modMc = String(mcVersion).slice(0, 20);
+  s.modpack = Array.isArray(s.modpack) ? s.modpack : [];
+  if (!s.modpack.some(m => m.project_id === projectId)) {
+    const p = await (await fetch(`https://api.modrinth.com/v2/project/${projectId}`, { headers: { 'User-Agent': 'ObsidianLauncher/0.2' } })).json();
+    s.modpack.push({ project_id: projectId, title: p.title || projectId });
+    saveServers(list);
+  }
+  return { mods: s.modpack };
+});
+ipcMain.handle('server-modpack-remove', (_, id, projectId) => {
+  const list = loadServers();
+  const s = list.find(x => x.id === id);
+  if (!s) throw new Error('Servidor não encontrado.');
+  s.modpack = (Array.isArray(s.modpack) ? s.modpack : []).filter(m => m.project_id !== projectId);
+  saveServers(list);
+  return { mods: s.modpack };
+});
+ipcMain.handle('server-modpack-code', (_, id) => {
+  const s = loadServers().find(x => x.id === id);
+  if (!s) throw new Error('Servidor não encontrado.');
+  const mp = getServerModpack(s);
+  if (!mp.mods.length) throw new Error('Lista vazia: adicione mods primeiro.');
+  const payload = { v: 1, game: mp.game, loader: mp.loader, mods: mp.mods.map(m => m.project_id) };
+  return { code: 'OBM1.' + Buffer.from(JSON.stringify(payload)).toString('base64url'), count: payload.mods.length };
+});
+ipcMain.handle('modpack-install-code', async (_, code) => {
+  const raw = String(code || '').trim();
+  if (!raw.startsWith('OBM1.')) throw new Error('Código inválido (começa com OBM1.)');
+  let payload;
+  try { payload = JSON.parse(Buffer.from(raw.slice(5), 'base64url').toString('utf8')); }
+  catch { throw new Error('Código inválido.'); }
+  if (!payload || !Array.isArray(payload.mods)) throw new Error('Código inválido.');
+  const ok = [], fail = [];
+  for (const pid of payload.mods.slice(0, 60)) {
+    try {
+      const { file } = await downloadModrinthFile(pid, payload.loader, payload.game, 'mod');
+      const dest = path.join(getModsDir(), file.filename);
+      if (!fs.existsSync(dest)) {
+        const dl = await fetch(file.url);
+        if (!dl.ok) throw new Error('HTTP ' + dl.status);
+        fs.writeFileSync(dest, Buffer.from(await dl.arrayBuffer()));
+      }
+      ok.push(file.filename);
+    } catch (e) { fail.push(pid + ': ' + e.message); }
+  }
+  return { ok, fail, game: payload.game, loader: payload.loader };
+});
+
 async function installModpack(projectId, mcVersion) {
   // Baixa .mrpack e instala: arquivos -> mods/, overrides -> pasta do jogo
   const AdmZip = require('adm-zip');

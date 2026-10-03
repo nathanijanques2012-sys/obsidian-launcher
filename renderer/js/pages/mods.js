@@ -80,6 +80,23 @@ function setupModButtons() {
   // Refresh instalados
   const btnModsRefresh = document.getElementById('btnModsRefresh');
   if (btnModsRefresh) btnModsRefresh.onclick = refreshModsList;
+
+  // Instalar mods do código do servidor (OBM1...)
+  const btnCode = document.getElementById('btnModpackCode');
+  if (btnCode) btnCode.onclick = async () => {
+    const inp = document.getElementById('modpackCode');
+    const code = inp ? inp.value.trim() : '';
+    if (!code) return toast.warning('Sem código', 'Cole o código OBM1... do dono do servidor');
+    btnCode.disabled = true;
+    try {
+      const r = await API.modpackInstallCode(code);
+      await refreshModsList();
+      toast.success('Mods instalados', `${r.ok.length} ok${r.fail.length ? `, ${r.fail.length} falharam` : ''} — troque o Jogar p/ ${r.loader} ${r.game}`);
+      if (r.fail.length) toast.error('Falhas', r.fail.slice(0, 3).join(' | '));
+      if (inp) inp.value = '';
+    } catch (err) { toast.error('Código inválido', err.message); }
+    btnCode.disabled = false;
+  };
   
   // Overlay info
   const btnOverlayInfo = document.getElementById('btnOverlayInfo');
