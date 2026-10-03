@@ -20,9 +20,12 @@ export function escapeHtml(str) {
 export function populateVersionSelect(versions, currentVersion = null) {
   const select = document.getElementById('version');
   if (!select) return;
-  select.innerHTML = versions.map(v => 
-    `<option ${v === currentVersion ? 'selected' : ''}>${v}</option>`
+  // Preserva a escolha atual ao reconstruir as opções (era isso que resetava)
+  const keep = currentVersion || select.value;
+  select.innerHTML = versions.map(v =>
+    `<option value="${v}" ${v === keep ? 'selected' : ''}>${v}</option>`
   ).join('');
+  if (keep && versions.includes(keep)) select.value = keep;
 }
 
 /**

@@ -44,7 +44,7 @@ async function loadDashboardData() {
     pageState.settings = settings.status === 'fulfilled' ? settings.value : { ramMin: '2G', ramMax: '4G', javaPath: '', gameDir: '', resolution: { width: 854, height: 480 }, version: '26.3', loader: 'fabric', autoUpdate: true, overlay: true, displayMode: 'window', softwareGL: false };
     
     updateAccountUI(pageState.account);
-    populateVersionSelect(pageState.versions);
+    populateVersionSelect(pageState.versions, pageState.settings?.version);
     updateContextLabels();
     
     // Renderiza cards do dashboard
@@ -61,15 +61,26 @@ async function loadDashboardData() {
 function setupButtons() {
   const versionSel = document.getElementById('version');
   const loaderSel = document.getElementById('loader');
-  
+
   if (versionSel) versionSel.addEventListener('change', () => {
     updateContextLabels();
     saveLastProfile();
+    persistVersionLoader();
   });
   if (loaderSel) loaderSel.addEventListener('change', () => {
     updateContextLabels();
     saveLastProfile();
+    persistVersionLoader();
   });
+}
+
+// A escolha do Jogar vale na hora e é salva: nada mais reseta ao trocar de
+// aba, e o resto (mods, skins, launch) sempre enxerga o valor atual.
+function persistVersionLoader() {
+  const v = document.getElementById('version').value;
+  const l = document.getElementById('loader').value;
+  if (pageState.settings) { pageState.settings.version = v; pageState.settings.loader = l; }
+  API.saveSettings({ version: v, loader: l }).catch(() => {});
 }
 
 function setupVersionLoaderSync() {
@@ -174,7 +185,8 @@ async function loadProfile(profileId) {
   // Salva como último perfil usado
   pageState.settings = { ...pageState.settings, lastProfile: profileId };
   await API.saveSettings({ lastProfile: profileId });
-  
+  persistVersionLoader();
+
   updateContextLabels();
   toast.info('Perfil carregado', profile.name);
 }
