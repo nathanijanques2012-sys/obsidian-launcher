@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Obsidian</string>
+    <style name="Theme.Obsidian" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#0d0716</item>
+        <item name="android:statusBarColor">#0d0716</item>
+        <item name="android:navigationBarColor">#0d0716</item>
+    </style>
+</resources>

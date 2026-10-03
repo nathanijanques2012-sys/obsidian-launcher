@@ -99,6 +99,10 @@ export class VirtualList {
   
   _renderVisible() {
     const { visibleStart, visibleEnd, items, renderItem, itemHeight, topSpacer, bottomSpacer, content, emptyEl } = this;
+
+    // Altura mínima: com poucos itens os spacers zeram e o conteúdo absoluto
+    // não sustenta altura — container colapsaria e a lista sumiria.
+    this.container.style.minHeight = items.length ? (Math.min(items.length, 3) * itemHeight + 'px') : '';
     
     if (items.length === 0) {
       topSpacer.style.height = '0';

@@ -24,7 +24,7 @@ contextBridge.exposeInMainWorld('api', {
   searchModrinth: async () => ({ hits: [] }),
   modDownload: async () => ({ file: 'x.jar', version: '1.0', skipped: false }),
   contentDownload: async () => ({ file: 'x.zip', version: '1.0', skipped: false }),
-  modsList: async () => [],
+  modsList: async () => [{ name: 'obsidian-overlay-forge.jar', size: 28336 }],
   contentList: async () => [],
   modDelete: async () => true,
   contentDelete: async () => true,
@@ -85,15 +85,10 @@ app.whenReady().then(async () => {
   await new Promise(r => setTimeout(r, 2500));
   const mdbg = await win.webContents.executeJavaScript(`(async () => {
     const out = {};
-    try { out.modsList = JSON.stringify(await window.ObsidianApp.API.modsList()).slice(0, 60); }
+    try { out.modsList = JSON.stringify(await window.ObsidianApp.API.modsList()).slice(0, 80); }
     catch (e) { out.modsListErr = String(e && e.message).slice(0, 120); }
-    out.countEl = !!document.getElementById('modsCount');
-    try {
-      const { VirtualList } = await import('./js/components/VirtualList.js');
-      const c = document.createElement('div');
-      const vl = new VirtualList({ container: c, items: [], renderItem: () => '', emptyMessage: 'VAZIO' });
-      out.vl = c.querySelector('.vl-empty') ? c.querySelector('.vl-empty').textContent : 'sem-emptyEl';
-    } catch (e) { out.vlErr = String(e && e.message).slice(0, 150); }
+    const c = document.getElementById('modsInstalled');
+    out.html = c ? c.innerHTML.slice(0, 300) : 'SEM-EL';
     return out;
   })()`);
   console.log('MODS-DOM:', JSON.stringify(mdbg));

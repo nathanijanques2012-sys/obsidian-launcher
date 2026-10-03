@@ -13,6 +13,10 @@ obsidian-mod/build/
 obsidian-mod/.gradle/
 *.log
 tools/ui-stub-gen.js
+companion-android/local.properties
+companion-android/.gradle/
+companion-android/app/build/
+companion-android/*.apk
 
 obsidian-mod/build/
 obsidian-mod/.gradle/

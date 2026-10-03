@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0716">
+<title>Obsidian Companion</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top">
+  <img class="logo" src="icon.svg" alt="Obsidian">
+  <div><b>OBSIDIAN</b><small>companion</small></div>
+  <span id="conn" class="chip off">offline</span>
+</header>
+
+<nav class="tabs">
+  <button data-tab="amigos" class="active">🧑‍🤝‍🧑 Amigos</button>
+  <button data-tab="mods" class="">🧩 Mods</button>
+  <button data-tab="skins">🎭 Skins</button>
+</nav>
+
+<main>
+  <section id="tab-amigos" class="page active">
+    <div class="card">
+      <h2>Conectar</h2>
+      <input id="relayUrl" placeholder="ws://IP-DO-PC:8091" autocomplete="off">
+      <div class="row">
+        <input id="nick" placeholder="seu nick" maxlength="16">
+        <button id="btnConn" class="primary">Entrar</button>
+      </div>
+      <p class="muted">Relay padrão do Obsidian Launcher (friend-server). Na internet use endereço wss:// com TLS.</p>
+    </div>
+    <div class="card" id="roomCard" hidden>
+      <h2>Sala <span id="roomCode" class="chip"></span></h2>
+      <div class="row">
+        <button id="btnCreate" class="ghost">Criar sala</button>
+        <input id="joinCode" placeholder="código (6 letras)" maxlength="8">
+        <button id="btnJoin" class="ghost">Entrar</button>
+      </div>
+      <ul id="members"></ul>
+      <div id="chat"></div>
+      <div class="row">
+        <input id="chatText" placeholder="mensagem..." maxlength="300">
+        <button id="btnSend" class="primary">➤</button>
+      </div>
+      <div class="row">
+        <input id="srvHost" placeholder="IP do servidor p/ divulgar">
+        <input id="srvPort" placeholder="porta" value="25565" inputmode="numeric">
+        <button id="btnShare" class="ghost">Divulgar</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-mods" class="page">
+    <div class="card">
+      <h2>Buscar mods (Modrinth)</h2>
+      <div class="row">
+        <input id="modQuery" placeholder="ex: sodium">
+        <button id="btnSearch" class="primary">Buscar</button>
+      </div>
+      <div class="row">
+        <select id="modLoader"><option value="fabric">Fabric</option><option value="forge">Forge</option></select>
+        <select id="mcVersion"></select>
+      </div>
+      <div id="mods"></div>
+    </div>
+  </section>
+
+  <section id="tab-skins" class="page">
+    <div class="card">
+      <h2>Prévia de skin</h2>
+      <div class="row">
+        <input id="skinNick" placeholder="nick do Minecraft">
+        <button id="btnSkin" class="primary">Ver</button>
+      </div>
+      <div class="skinwrap"><img id="skinImg" alt="" hidden></div>
+      <p class="muted">Render via Crafatar. Para aplicar de verdade, use a aba Skins do launcher no PC.</p>
+    </div>
+  </section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

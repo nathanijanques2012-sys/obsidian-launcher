@@ -15,7 +15,7 @@ contextBridge.exposeInMainWorld('api', {
   searchModrinth: async () => ({ hits: [] }),
   modDownload: async () => ({ file: 'x.jar', version: '1.0', skipped: false }),
   contentDownload: async () => ({ file: 'x.zip', version: '1.0', skipped: false }),
-  modsList: async () => [],
+  modsList: async () => [{ name: 'obsidian-overlay-forge.jar', size: 28336 }],
   contentList: async () => [],
   modDelete: async () => true,
   contentDelete: async () => true,
