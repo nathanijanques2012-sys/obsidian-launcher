@@ -7,6 +7,7 @@ const os = require('os');
 const { Client, Authenticator } = require('minecraft-launcher-core');
 const { autoUpdater } = require('electron-updater');
 const { execSync, execFileSync } = require('child_process');
+const upnp = require('./upnp'); // UPnP IGD p/ expor servidor sem mexer no roteador
 
 app.setAppUserModelId('com.obsidian.launcher');
 app.setName('Obsidian Launcher');
@@ -1021,8 +1022,37 @@ function lanIP() {
 }
 ipcMain.handle('servers-list', () => {
   const lan = lanIP();
-  return loadServers().map(s => ({ ...s, running: runningServers.has(s.id), lan: lan ? lan + (s.port === 25565 ? '' : ':' + s.port) : '' }));
+  return loadServers().map(s => ({ ...s,
+    running: runningServers.has(s.id),
+    external: runningServers.get(s.id)?.external || '',
+    lan: lan ? lan + (s.port === 25565 ? '' : ':' + s.port) : ''
+  }));
 });
+
+async function exposeUpnp(id, s) {
+  // Roteador com UPnP abre a porta sozinho; sem UPnP só avisa no console
+  // (não é erro: na mesma rede continua funcionando normal).
+  const port = +s.port;
+  if (!Number.isFinite(port) || port <= 0 || port > 65535) return;
+  const lan = lanIP();
+  if (!lan || !runningServers.get(id)) return;
+  try {
+    slog(id, 'UPnP: pedindo abertura da porta ao roteador...');
+    const m = await upnp.mapPort({ publicPort: port, privatePort: port, lan, description: `Obsidian ${s.name}` });
+    const r = runningServers.get(id);
+    if (!r) { try { await upnp.unmapPort({ publicPort: port, controlUrl: m.controlUrl, serviceType: m.serviceType }); } catch {} return; }
+    if (m.externalIp) {
+      r.external = m.externalIp + (port === 25565 ? '' : ':' + port);
+      r.upnp = { publicPort: port, controlUrl: m.controlUrl, serviceType: m.serviceType };
+      slog(id, `Acesso de fora: ${r.external} (UPnP ✓)`);
+    } else {
+      slog(id, 'UPnP respondeu mas sem IP externo.');
+    }
+  } catch (e) {
+    slog(id, `UPnP indisponível (${e.message}). Na mesma rede use o IP local; de fora, libere a porta no roteador ou use tunnel (playit.gg).`);
+  }
+  try { win?.webContents.send('server-state', { id, running: runningServers.has(id) }); } catch {}
+}
 ipcMain.handle('server-add', (_, data) => {
   const list = loadServers();
   const s = {
@@ -1122,6 +1152,8 @@ ipcMain.handle('server-start', async (_, id) => {
   slog(id, `Iniciando: ${cmd} ${args.join(' ')}`);
   const proc = spawn(cmd, args, { cwd, windowsHide: true });
   runningServers.set(id, { proc, log: [] });
+  // UPnP em 2º plano: tenta abrir a porta no roteador sozinho (não trava o start)
+  exposeUpnp(id, s).catch(() => {});
   proc.stdout.on('data', (d) => String(d).split('\n').forEach(l => l.trim() && slog(id, l)));
   proc.stderr.on('data', (d) => String(d).split('\n').forEach(l => l.trim() && slog(id, l)));
   proc.on('exit', (code) => { runningServers.delete(id); slog(id, `--- processo encerrou (código ${code}) ---`); win?.webContents.send('server-state', { id, running: false }); });
@@ -1133,6 +1165,10 @@ ipcMain.handle('server-start', async (_, id) => {
 ipcMain.handle('server-stop', (_, id) => {
   const r = runningServers.get(id);
   if (!r) return { stopped: false };
+  if (r.upnp) {
+    const u = r.upnp; r.upnp = null;
+    upnp.unmapPort(u).then(() => slog(id, 'UPnP: porta fechada ✓')).catch((e) => slog(id, 'UPnP: ' + e.message));
+  }
   try { r.proc.stdin.write('stop\n'); } catch {}
   setTimeout(() => { try { r.proc.kill('SIGKILL'); } catch {} }, 8000).unref?.();
   return { stopping: true };

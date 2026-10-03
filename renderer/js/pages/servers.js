@@ -62,6 +62,7 @@ async function refreshServers() {
         <button data-saveaddr="${s.id}" class="ghost">Salvar</button>
         <button data-copyaddr="${s.id}" class="ghost">Copiar</button>
       </div>
+      ${s.external ? `<div class="login-row" style="width:100%"><span class="chip">🌍 de fora: ${escapeHtml(s.external)}</span><button data-copyext="${escapeHtml(s.external)}" class="ghost">Copiar</button></div>` : ''}
       <div class="login-row">
         <button data-view="${s.id}" class="ghost">Console</button>
         ${s.running
@@ -103,6 +104,9 @@ async function refreshServers() {
     const v = (inp && inp.value.trim()) || (inp && inp.placeholder) || '';
     if (!v) return toast.warning('Sem endereço', 'Digite um endereço primeiro');
     navigator.clipboard.writeText(v).then(() => toast.success('Endereço copiado', v));
+  });
+  box.querySelectorAll('[data-copyext]').forEach(x => x.onclick = () => {
+    navigator.clipboard.writeText(x.dataset.copyext).then(() => toast.success('Endereço externo copiado', x.dataset.copyext));
   });
 }
 
