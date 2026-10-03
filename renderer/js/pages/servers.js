@@ -49,11 +49,18 @@ async function refreshServers() {
   if (!current && list.some(s => s.running)) current = list.find(s => s.running).id;
   const nameEl = document.getElementById('srvConsoleName');
   if (nameEl) { const c = list.find(s => s.id === current); nameEl.textContent = c ? c.name : ''; }
-  box.innerHTML = list.map(s => `
+  box.innerHTML = list.map(s => {
+    return `
     <div class="mod" style="padding:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
       <div><b>${escapeHtml(s.name)}</b>
         <span class="chip">${typeName[s.type] || s.type}</span>
         <span class="muted">${escapeHtml(s.version || '')} :${s.port || ''} ${s.running ? '🟢' : '⚫'}</span>
+      </div>
+      <div class="login-row" style="width:100%">
+        <span class="muted">Entrar em:</span>
+        <input data-addrin="${s.id}" value="${escapeHtml(s.address || '')}" placeholder="${escapeHtml(s.lan || 'localhost')}" title="Endereço que aparece p/ entrar. Vazio = usa o da sua rede. P/ jogar de fora, coloque IP público, domínio ou tunnel." style="flex:1;min-width:140px">
+        <button data-saveaddr="${s.id}" class="ghost">Salvar</button>
+        <button data-copyaddr="${s.id}" class="ghost">Copiar</button>
       </div>
       <div class="login-row">
         <button data-view="${s.id}" class="ghost">Console</button>
@@ -62,7 +69,7 @@ async function refreshServers() {
           : `<button data-start="${s.id}" class="primary">Iniciar</button>
              <button data-del="${s.id}" class="ghost">Excluir</button>`}
       </div>
-    </div>`).join('') || '<span class="muted">Nenhum servidor. Crie o primeiro acima (ex: Minecraft 26.3).</span>';
+    </div>`;}).join('') || '<span class="muted">Nenhum servidor. Crie o primeiro acima (ex: Minecraft 26.3).</span>';
   box.querySelectorAll('[data-view]').forEach(x => x.onclick = async () => {
     current = x.dataset.view;
     const el = document.getElementById('srvConsole');
@@ -85,6 +92,18 @@ async function refreshServers() {
     try { await API.serverDelete(x.dataset.del); refreshServers(); }
     catch (e) { toast.error('Erro', e.message); }
   });
+  box.querySelectorAll('[data-saveaddr]').forEach(x => x.onclick = async () => {
+    const inp = box.querySelector(`[data-addrin="${x.dataset.saveaddr}"]`);
+    try { await API.serverSetAddress(x.dataset.saveaddr, inp ? inp.value.trim() : ''); toast.success('Endereço salvo', (inp && inp.value.trim()) || '(usando o da rede)'); }
+    catch (e) { toast.error('Erro', e.message); }
+    refreshServers();
+  });
+  box.querySelectorAll('[data-copyaddr]').forEach(x => x.onclick = () => {
+    const inp = box.querySelector(`[data-addrin="${x.dataset.copyaddr}"]`);
+    const v = (inp && inp.value.trim()) || (inp && inp.placeholder) || '';
+    if (!v) return toast.warning('Sem endereço', 'Digite um endereço primeiro');
+    navigator.clipboard.writeText(v).then(() => toast.success('Endereço copiado', v));
+  });
 }
 
 async function addServer() {
@@ -93,15 +112,17 @@ async function addServer() {
   const version = document.getElementById('srvVersion').value.trim() || '26.3';
   const port = document.getElementById('srvPort').value.trim() || '25565';
   const extra = document.getElementById('srvExtra').value.trim();
+  const address = document.getElementById('srvAddress').value.trim();
   try {
     const s = await API.serverAdd({
-      name, type, version, port,
+      name, type, version, port, address,
       appId: type === 'hytale-steamcmd' ? extra : '',
       exe: type === 'custom' ? extra : ''
     });
     toast.success('Servidor criado', s.name);
     document.getElementById('srvName').value = '';
     document.getElementById('srvExtra').value = '';
+    document.getElementById('srvAddress').value = '';
     refreshServers();
   } catch (e) { toast.error('Erro', e.message); }
 }

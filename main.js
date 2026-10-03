@@ -1008,8 +1008,20 @@ function slog(id, line) {
   win?.webContents.send('server-log', { id, line: text });
 }
 
+function lanIP() {
+  // IP da rede local p/ sugerir como endereço de entrada (celular/outro PC no Wi-Fi)
+  try {
+    for (const nets of Object.values(os.networkInterfaces())) {
+      for (const n of nets || []) {
+        if (n.family === 'IPv4' && !n.internal && /^(192\.168|10\.|172\.(1[6-9]|2\d|3[01]))\./.test(n.address)) return n.address;
+      }
+    }
+  } catch {}
+  return '';
+}
 ipcMain.handle('servers-list', () => {
-  return loadServers().map(s => ({ ...s, running: runningServers.has(s.id) }));
+  const lan = lanIP();
+  return loadServers().map(s => ({ ...s, running: runningServers.has(s.id), lan: lan ? lan + (s.port === 25565 ? '' : ':' + s.port) : '' }));
 });
 ipcMain.handle('server-add', (_, data) => {
   const list = loadServers();
@@ -1023,6 +1035,7 @@ ipcMain.handle('server-add', (_, data) => {
     appId: String(data?.appId || ''),
     exe: String(data?.exe || ''),
     args: String(data?.args || ''),
+    address: String(data?.address || '').slice(0, 120),
     createdAt: Date.now()
   };
   list.push(s); saveServers(list);
@@ -1032,6 +1045,15 @@ ipcMain.handle('server-delete', (_, id) => {
   const r = runningServers.get(id);
   if (r) throw new Error('Pare o servidor antes de excluir.');
   saveServers(loadServers().filter(s => s.id !== id));
+  return true;
+});
+ipcMain.handle('server-set-address', (_, id, address) => {
+  // Endereço personalizado p/ entrar (IP público, domínio ou tunnel). Só rótulo: não muda porta/rede.
+  const list = loadServers();
+  const s = list.find(x => x.id === id);
+  if (!s) throw new Error('Servidor não encontrado.');
+  s.address = String(address || '').slice(0, 120);
+  saveServers(list);
   return true;
 });
 ipcMain.handle('server-log-get', (_, id) => (runningServers.get(id)?.log || []).join('\n'));

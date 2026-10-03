@@ -42,6 +42,7 @@ contextBridge.exposeInMainWorld('api', {
   serverStart: (id) => ipcRenderer.invoke('server-start', id),
   serverStop: (id) => ipcRenderer.invoke('server-stop', id),
   serverCmd: (id, c) => ipcRenderer.invoke('server-cmd', id, c),
+  serverSetAddress: (id, address) => ipcRenderer.invoke('server-set-address', id, address),
   serverLogGet: (id) => ipcRenderer.invoke('server-log-get', id),
   onServerLog: (cb) => ipcRenderer.on('server-log', (_, v) => cb(v)),
   onServerState: (cb) => ipcRenderer.on('server-state', (_, v) => cb(v)),

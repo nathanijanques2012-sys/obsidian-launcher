@@ -65,7 +65,7 @@ export async function apiCall(method, ...args) {
                         'modDownload', 'contentDownload', 'modDelete', 'contentDelete',
                         'friendAdd', 'friendDelete', 'inviteCreate', 'inviteAccept', 'friendSync',
                         'skinImport', 'skinDelete', 'skinApply', 'checkUpdate', 'installUpdate', 'repairVersion',
-                        'stopGame', 'serverAdd', 'serverDelete', 'serverStart', 'serverStop', 'serverCmd'].includes(method);
+                        'stopGame', 'serverAdd', 'serverDelete', 'serverStart', 'serverStop', 'serverCmd', 'serverSetAddress'].includes(method);
     
     if (!isMutation) {
       cache.set(key, { data: result, timestamp: Date.now() });
@@ -103,6 +103,9 @@ function invalidateRelatedCache(method, args) {
   }
   if (method === 'skinImport' || method === 'skinDelete' || method === 'skinApply') {
     patterns.push('skin-list');
+  }
+  if (method === 'serverAdd' || method === 'serverDelete' || method === 'serverSetAddress') {
+    patterns.push('serversList', 'servers-list');
   }
   if (method === 'saveSettings') {
     patterns.push('get-settings');
@@ -219,6 +222,7 @@ export const API = {
   serverStart: (id) => apiCall('serverStart', id),
   serverStop: (id) => apiCall('serverStop', id),
   serverCmd: (id, c) => apiCall('serverCmd', id, c),
+  serverSetAddress: (id, address) => apiCall('serverSetAddress', id, address),
   serverLogGet: (id) => apiCall('serverLogGet', id),
   onServerLog: (cb) => window.api.onServerLog(cb),
   onServerState: (cb) => window.api.onServerState(cb),
