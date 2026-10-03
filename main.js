@@ -129,10 +129,15 @@ async function applySoftwareGL(javaExe, on) {
 }
 
 function getBundledJava(major = 21) {
-  const candidates = [
+  // Java 25: prefere o JRE (o JDK completo derruba a SDL3 do MC 26.x)
+  const candidates = major === 25 ? [
+    path.join(__dirname, '.jre25', 'bin', 'javaw.exe'), // dev
+    path.join(userData(), '.jre25', 'bin', 'javaw.exe') // provisionado
+  ] : [];
+  candidates.push(
     path.join(__dirname, `.jdk${major}`, 'bin', 'javaw.exe'), // dev
     path.join(userData(), `.jdk${major}`, 'bin', 'javaw.exe') // provisionado
-  ];
+  );
   // Instalação padrão (Microsoft / Temurin / Oracle)
   const pf = process.env['ProgramFiles'] || 'C:\\Program Files';
   const javaHome = process.env['JAVA_HOME'];
@@ -170,6 +175,17 @@ const JDK_URLS = {
   25: 'https://api.adoptium.net/v3/binary/latest/25/ga/windows/x64/jdk/hotspot/normal/eclipse'
 };
 
+// MC 26.x usa SDL3: o JDK 25 completo quebra o load da SDL3.dll dentro da JVM
+// (erro 1114, DllMain falha). O JRE 25 do MESMO build carrega normal.
+const JRE_URLS = {
+  25: 'https://api.adoptium.net/v3/binary/latest/25/ga/windows/x64/jre/hotspot/normal/eclipse'
+};
+
+// JRE nunca tem javac; JDK sempre tem. Serve p/ rejeitar JDK 25 no MC 26.x.
+function isFullJDK(binDir) {
+  try { return fs.existsSync(path.join(binDir, 'javac.exe')); } catch { return false; }
+}
+
 function fallbackJava(id) {
   // Sem manifest (snapshot/custom): deduz pela versão
   const m = String(id).match(/^(\d+)\.(\d+)(?:\.(\d+))?/);
@@ -185,16 +201,19 @@ function fallbackJava(id) {
 async function ensureJava(major = 21) {
   if (major === 16) { major = 17; } // 1.17 roda no 17 (16 morreu, sem build pública boa)
   const found = getBundledJava(major);
-  if (found) return found;
-  const url = JDK_URLS[major];
+  // JDK 25 nem adianta reaproveitar: quebra a SDL3 do MC 26.x (erro 1114)
+  if (found && !(major === 25 && isFullJDK(path.dirname(found)))) return found;
+  const wantJre = !!JRE_URLS[major];
+  const tag = wantJre ? 'jre' : 'jdk';
+  const url = wantJre ? JRE_URLS[major] : JDK_URLS[major];
   if (!url) throw new Error(`Java ${major} sem download automático. Instale manual e aponte em Config.`);
-  // Baixa JDK uma única vez
+  // Baixa Java uma única vez
   const log = (m) => win?.webContents.send('launch-log', m);
-  const dir = path.join(userData(), `.jdk${major}`);
+  const dir = path.join(userData(), `.${tag}${major}`);
   const javaExe = path.join(dir, 'bin', 'javaw.exe');
   if (fs.existsSync(javaExe)) return javaExe;
   log(`Java ${major} não encontrado. Baixando (só na 1ª vez)...`);
-  const zip = path.join(userData(), '.cache', `jdk${major}.zip`);
+  const zip = path.join(userData(), '.cache', `${tag}${major}.zip`);
   await downloadFile(url, zip, `Java ${major}`);
   log('Extraindo Java...');
   const tmp = path.join(userData(), '.cache', 'jdk-ex');
@@ -290,6 +309,22 @@ async function ensureFabric(root, mcVersion) {
 function ensureOverlay(root) {
   const r = syncOverlayJar(path.join(root, 'mods'), getOverlayJar(), /^obsidian-overlay(?!-forge).*\.jar$/);
   return r ? r.file : null;
+}
+
+function removeOverlayJars(gameDir) {
+  // Desligar a overlay tem que TIRAR o .jar da pasta mods/: só pular o sync
+  // não adianta, porque a cópia de um lançamento anterior continuaria ativa.
+  // Vai p/ .disabled/ (não apaga) p/ voltar sozinho ao reativar.
+  const modsDir = path.join(gameDir, 'mods');
+  const dis = path.join(modsDir, '.disabled');
+  fs.mkdirSync(dis, { recursive: true });
+  let gone = 0;
+  for (const f of fs.readdirSync(modsDir)) {
+    if (/^obsidian-overlay.*\.jar$/i.test(f)) {
+      try { fs.renameSync(path.join(modsDir, f), path.join(dis, f)); gone++; } catch {}
+    }
+  }
+  return gone;
 }
 
 function createWindow() {
@@ -432,8 +467,10 @@ ipcMain.handle('launch', async (_, opts = {}) => {
   // Java: config > provisionado > PATH; se nada, baixa Microsoft JDK 21
 
   // GPU: sem driver de vídeo real o GLFW não cria a janela (erro 0x10006)
+  let gpuProbe = '';
   try {
     const out = execSync('powershell.exe -NoProfile -Command "Get-CimInstance Win32_VideoController | ForEach-Object { $_.Name + \' | driver \' + $_.DriverVersion + \' | \' + $_.Status }"', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 15000 }).trim();
+    gpuProbe = out;
     for (const line of out.split('\n')) win?.webContents.send('launch-log', 'GPU: ' + line.trim());
     if (/basic display|padrão|standard vga|llvmpipe/i.test(out) || !out) {
       win?.webContents.send('launch-log', 'AVISO: sem driver de vídeo instalado! O jogo pode falhar (GLFW/OpenGL). Instale o driver NVIDIA/AMD/Intel.');
@@ -442,6 +479,15 @@ ipcMain.handle('launch', async (_, opts = {}) => {
       win?.webContents.send('launch-log', 'Dica: 2 GPUs detectadas (notebook?). Se falhar, force o javaw.exe na GPU dedicada em Configurações do Windows > Tela > Gráficos.');
     }
   } catch {}
+  if (gpuProbe && settings.softwareGL
+      && /nvidia|geforce|amd|radeon|intel/i.test(gpuProbe)
+      && !/basic|padrao|padrão|standard vga|llvmpipe/i.test(gpuProbe)) {
+    // GPU real com driver: o Mesa (modo compatibilidade) matava o jogo no
+    // EarlyDisplay. Desliga de vez, mesmo se a caixinha ficou marcada na tela.
+    settings.softwareGL = false;
+    try { saveJson(settingsPath(), { ...getSettings(), softwareGL: false }); } catch {}
+    win?.webContents.send('launch-log', 'GPU com driver detectada: modo compatibilidade DESLIGADO.');
+  }
   // Java certo p/ a versão (1.21.x=21, 26.x=25)
   const javaMajor = await getRequiredJava(settings.version);
   win?.webContents.send('launch-log', `[2/4] Java ${javaMajor} p/ ${settings.version}`);
@@ -455,6 +501,12 @@ ipcMain.handle('launch', async (_, opts = {}) => {
   let javaPath = '';
   if (settings.javaPath && fs.existsSync(settings.javaPath) && probeMajor(settings.javaPath) === javaMajor) {
     javaPath = settings.javaPath;
+  }
+  if (javaMajor === 25 && javaPath && isFullJDK(path.dirname(javaPath))) {
+    // JDK 25 (qualquer vendor/build) quebra a SDL3 do MC 26.x: erro 1114.
+    // O JRE 25 do mesmo build funciona — força a troca e avisa no log.
+    win?.webContents.send('launch-log', 'JDK 25 rejeitado (incompatível com MC 26.x, SDL3 erro 1114). Trocando por JRE 25...');
+    javaPath = '';
   }
   if (!javaPath) {
     win?.webContents.send('launch-log', 'Procurando Java...');
@@ -481,7 +533,11 @@ ipcMain.handle('launch', async (_, opts = {}) => {
     if (settings.overlay && /^1\.21(\.|$)/.test(settings.version)) {
       const o = ensureOverlay(settings.gameDir);
       win?.webContents.send('launch-log', o ? 'Overlay Obsidian ativo ✓' : 'Overlay .jar não encontrado (rode build do obsidian-mod)');
-    } else if (settings.overlay) {      win?.webContents.send('launch-log', 'Overlay só existe p/ 1.21 (pulando) — resto funciona normal.');
+    } else {
+      const gone = removeOverlayJars(settings.gameDir);
+      win?.webContents.send('launch-log', settings.overlay
+        ? 'Overlay só existe p/ 1.21 (removido p/ não crashar) — resto funciona normal.'
+        : `Overlay Obsidian desativado${gone ? ' (mod removido da pasta)' : ''} ✓`);
     }
   } else if (settings.loader === 'forge' || settings.loader === 'optifine') {
     if (settings.loader === 'optifine') {
@@ -495,6 +551,11 @@ ipcMain.handle('launch', async (_, opts = {}) => {
       // Overlay Forge (mesmo menu/HUD/amigos do Fabric)
       const r = syncOverlayJar(path.join(settings.gameDir, 'mods'), getOverlayForgeJar(), /^obsidian-overlay-forge.*\.jar$/);
       win?.webContents.send('launch-log', r ? `Overlay Obsidian (Forge ${r.tag}) ativo ✓` : 'Overlay .jar não encontrado (rode build do obsidian-mod-forge)');
+    } else {
+      const gone = removeOverlayJars(settings.gameDir);
+      win?.webContents.send('launch-log', settings.overlay
+        ? 'Overlay Forge só existe p/ 1.21.1 (removido p/ não crashar) — resto funciona normal.'
+        : `Overlay Obsidian desativado${gone ? ' (mod removido da pasta)' : ''} ✓`);
     }
   }
 
