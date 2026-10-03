@@ -895,8 +895,32 @@ ipcMain.handle('last-crash', () => {
     .sort((a, b) => b.t - a.t);
   if (!files.length) return { file: null, head: 'Sem crash-reports.' };
   const full = fs.readFileSync(path.join(dir, files[0].f), 'utf8');
-  return { file: files[0].f, head: full.split('\n').slice(0, 45).join('\n') };
+  return { file: files[0].f, head: full.split('\n').slice(0, 45).join('\n'), diagnosis: diagnoseCrash(full) };
 });
+
+function diagnoseCrash(full) {
+  // Traduz crash-report em causa provável + conserto (botão "Crash report")
+  if (!full) return '';
+  if (/Shaders\.beginRender|ShadersRender\.updateActiveRenderInfo/.test(full)) {
+    const sh = (full.match(/^\s*Shaders: (.+)$/m) || [])[1] || 'atual';
+    return `DIAGNÓSTICO: crash no SHADER do OptiFine (${sh.trim()}). Entre no jogo > Opções > Vídeo > Shaders > Nenhum, ou apague o .zip de shaderpacks/.`;
+  }
+  const ncd = full.match(/NoClassDefFoundError: (\S+)/);
+  if (ncd) {
+    const atMod = full.match(/at TRANSFORMER\/([^@\s]+)@/);
+    return `DIAGNÓSTICO: mod ${atMod ? atMod[1] : '(ver stack)'} quebrou por dependência faltando (${ncd[1]}). Instale a lib que ele pede ou remova o mod.`;
+  }
+  if (/0x10006|Failed to find a valid GLFW profile/.test(full)) {
+    return 'DIAGNÓSTICO: OpenGL sem driver (GLFW 0x10006). Reinstale o driver NVIDIA/AMD/Intel com instalação limpa.';
+  }
+  if (/OutOfMemoryError|ran out of memory/i.test(full)) {
+    return 'DIAGNÓSTICO: faltou RAM. Suba a RAM máxima na Config.';
+  }
+  const desc = (full.match(/^Description: (.+)$/m) || [])[1];
+  const caused = (full.match(/^Caused by: (.+)$/m) || [])[1];
+  if (desc || caused) return `DIAGNÓSTICO: ${(desc || '').trim()}${caused ? ' → ' + caused.trim() : ''}`;
+  return '';
+}
 
 ipcMain.handle('mod-delete', (_, name) => {
   const p = path.join(getModsDir(), path.basename(name));

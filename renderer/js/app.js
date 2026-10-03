@@ -437,7 +437,7 @@ if (btnCrash) {
     const logEl = document.getElementById('log');
     const crash = await API.lastCrash();
     if (logEl) {
-      logEl.textContent += `\n--- ${crash.file || 'crash'} ---\n${crash.head}\n`;
+      logEl.textContent += `\n--- ${crash.file || 'crash'} ---\n${crash.diagnosis ? crash.diagnosis + '\n' : ''}${crash.head}\n`;
       logEl.scrollTop = logEl.scrollHeight;
     }
   };
