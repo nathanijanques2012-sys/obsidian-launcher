@@ -1095,13 +1095,20 @@ ipcMain.handle('server-set-address', (_, id, address) => {
 playit.setEventHandler((type) => {
   if (type === 'state') { try { win?.webContents.send('playit-state', playit.status()); } catch {} }
 });
-ipcMain.handle('playit-status', () => playit.status());
+ipcMain.handle('playit-status', () => ({ ...playit.status(), hasSecret: !!getSettings().playitSecret }));
 ipcMain.handle('playit-start', async () => {
   await playit.start(userData(), getSettings().playitSecret, downloadFile);
   try { win?.webContents.send('playit-state', playit.status()); } catch {}
   return playit.status();
 });
 ipcMain.handle('playit-stop', () => playit.stop());
+ipcMain.handle('open-external', (_, url) => {
+  // Links externos só p/ domínios conhecidos (anti-phishing)
+  const u = String(url || '');
+  if (!/^https:\/\/(www\.)?playit\.gg(\/|$)/.test(u) && !/^https:\/\/github\.com\/nathanijanques2012-sys\//.test(u)) throw new Error('Link bloqueado.');
+  shell.openExternal(u);
+  return true;
+});
 ipcMain.handle('server-log-get', (_, id) => (runningServers.get(id)?.log || []).join('\n'));
 
 async function ensureSteamCmd() {

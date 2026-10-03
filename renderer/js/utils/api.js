@@ -66,7 +66,7 @@ export async function apiCall(method, ...args) {
                         'friendAdd', 'friendDelete', 'inviteCreate', 'inviteAccept', 'friendSync',
                         'skinImport', 'skinDelete', 'skinApply', 'checkUpdate', 'installUpdate', 'repairVersion',
                         'stopGame', 'serverAdd', 'serverDelete', 'serverStart', 'serverStop', 'serverCmd', 'serverSetAddress',
-                        'playitStart', 'playitStop'].includes(method);
+                        'playitStart', 'playitStop', 'openExternal'].includes(method);
     
     if (!isMutation) {
       cache.set(key, { data: result, timestamp: Date.now() });
@@ -227,6 +227,7 @@ export const API = {
   playitStatus: () => apiCall('playitStatus'),
   playitStart: () => apiCall('playitStart'),
   playitStop: () => apiCall('playitStop'),
+  openExternal: (url) => apiCall('openExternal', url),
   onPlayitState: (cb) => window.api.onPlayitState(cb),
   serverLogGet: (id) => apiCall('serverLogGet', id),
   onServerLog: (cb) => window.api.onServerLog(cb),

@@ -56,12 +56,13 @@ function publicStatus() {
 
 async function start(userData, secret, downloadFile) {
   if (proc) return { already: true };
-  if (!secret) throw new Error('Falta o secret do playit.gg (aba Servidores > Tunnel).');
+  if (!secret) throw new Error('Falta o secret do playit.gg (passo 2 abaixo).');
+  state = { running: true, connected: false, addresses: [], log: [] };
+  pushLog('preparando agente (baixa sozinho na 1ª vez)...');
   const exe = await ensureAgent(userData, downloadFile);
   // Secret em arquivo (não vaza na linha de comando)
   secretFile = path.join(path.dirname(exe), 'secret.txt');
   fs.writeFileSync(secretFile, String(secret).trim());
-  state = { running: true, connected: false, addresses: [], log: [] };
   proc = spawn(exe, ['--secret-path', secretFile], { windowsHide: true });
   pushLog('playit: agente iniciado');
   proc.stdout.on('data', (d) => String(d).split('\n').forEach(l => { l = l.trim(); if (l) { pushLog(l); parseLine(l); } }));

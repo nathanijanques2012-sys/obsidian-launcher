@@ -46,6 +46,7 @@ contextBridge.exposeInMainWorld('api', {
   playitStatus: () => ipcRenderer.invoke('playit-status'),
   playitStart: () => ipcRenderer.invoke('playit-start'),
   playitStop: () => ipcRenderer.invoke('playit-stop'),
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
   onPlayitState: (cb) => ipcRenderer.on('playit-state', (_, v) => cb(v)),
   serverLogGet: (id) => ipcRenderer.invoke('server-log-get', id),
   onServerLog: (cb) => ipcRenderer.on('server-log', (_, v) => cb(v)),

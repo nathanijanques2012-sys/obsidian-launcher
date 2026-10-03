@@ -6,6 +6,7 @@ import { toast } from '../utils/toast.js';
 
 let current = null;
 let playitSub = false;
+let srvPortHint = 25565;
 
 export async function init() {
   setupButtons();
@@ -44,13 +45,26 @@ async function togglePlayit() {
 async function refreshPlayit() {
   const box = document.getElementById('playitStatus');
   const btn = document.getElementById('btnPlayitToggle');
+  const steps = document.getElementById('playitSteps');
   if (!box) return;
   let st;
   try { st = await API.playitStatus(); } catch (e) { box.textContent = 'Erro: ' + e.message; return; }
   if (btn) btn.textContent = st.running ? 'Parar tunnel' : 'Ativar tunnel';
+  const addrs = st.addresses || [];
+  if (steps) {
+    const s1 = st.hasSecret ? '✅' : '⬜', s2 = st.hasSecret ? '✅' : '⬜';
+    const s3 = st.running ? '✅' : '⬜', s4 = addrs.length ? '✅' : '⬜';
+    steps.innerHTML =
+      '<div class="muted" style="display:grid;gap:6px;margin-bottom:4px">' +
+      `<div>${s1} <b>Passo 1 — site (1ª vez):</b> crie a conta, crie um agente, crie um tunnel <b>Minecraft Java</b> apontando p/ <code>127.0.0.1:${srvPortHint}</code> <button data-openplayit class="ghost" style="padding:2px 10px">Abrir painel</button></div>` +
+      `<div>${s2} <b>Passo 2 — secret:</b> cole o secret do agente abaixo e clique Salvar secret.</div>` +
+      `<div>${s3} <b>Passo 3 — ativar:</b> clique Ativar tunnel (o agente baixa sozinho).</div>` +
+      `<div>${s4} <b>Passo 4 — endereço:</b> ${addrs.length ? 'clique <b>Usar</b> no card do servidor 👆' : 'aparece aqui quando conectar.'}</div>` +
+      '</div>';
+    steps.querySelectorAll('[data-openplayit]').forEach(b => b.onclick = () => API.openExternal('https://playit.gg/login').catch(e => toast.error('Erro', e.message)));
+  }
   if (!st.running) { box.textContent = 'Tunnel desligado.'; return; }
-  const addrs = (st.addresses || []).join(', ');
-  if (st.connected && addrs) box.innerHTML = `🟢 Conectado: <b>${escapeHtml(addrs)}</b>`;
+  if (st.connected && addrs.length) box.innerHTML = `🟢 Conectado: <b>${escapeHtml(addrs.join(', '))}</b>`;
   else box.textContent = '🟡 Ligando... ' + (((st.log || []).slice(-1)[0]) || '');
 }
 
@@ -86,6 +100,8 @@ async function refreshServers() {
   let list = [];
   try { list = await API.serversList(); }
   catch (e) { box.innerHTML = '<span class="muted">Erro: ' + e.message + '</span>'; return; }
+  const hintSrv = list.find(s => s.id === current) || list[0];
+  if (hintSrv && hintSrv.port) srvPortHint = hintSrv.port;
   if (!current && list.some(s => s.running)) current = list.find(s => s.running).id;
   const nameEl = document.getElementById('srvConsoleName');
   if (nameEl) { const c = list.find(s => s.id === current); nameEl.textContent = c ? c.name : ''; }
