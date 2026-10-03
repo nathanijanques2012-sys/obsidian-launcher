@@ -8,6 +8,7 @@ const { Client, Authenticator } = require('minecraft-launcher-core');
 const { autoUpdater } = require('electron-updater');
 const { execSync, execFileSync } = require('child_process');
 const upnp = require('./upnp'); // UPnP IGD p/ expor servidor sem mexer no roteador
+const playit = require('./playit'); // tunnel playit.gg (sem port forward)
 
 app.setAppUserModelId('com.obsidian.launcher');
 app.setName('Obsidian Launcher');
@@ -240,6 +241,7 @@ function getSettings() {
     version: '26.3',
     loader: 'fabric', // vanilla | fabric | forge | optifine
     overlay: true, // copia obsidian-overlay.jar p/ mods/ automaticamente
+    playitSecret: '', // secret do agente playit.gg (tunnel p/ jogar de fora)
     displayMode: 'window', // window | exclusive | borderless
     softwareGL: false, // true = Mesa llvmpipe (sem placa de vídeo, FPS menor)
     autoUpdate: true
@@ -382,6 +384,7 @@ function setupAutoUpdate(manual = false) {
 ipcMain.handle('get-settings', () => getSettings());
 ipcMain.handle('save-settings', (_, s) => {
   const clean = Object.fromEntries(Object.entries(s || {}).filter(([, v]) => v !== undefined && v !== ''));
+  if (s && 'playitSecret' in s) clean.playitSecret = String(s.playitSecret || '').slice(0, 200); // vazio limpa de propósito
   const cur = getSettings();
   saveJson(settingsPath(), { ...cur, ...clean, resolution: s.resolution || cur.resolution });
   return true;
@@ -1025,6 +1028,7 @@ ipcMain.handle('servers-list', () => {
   return loadServers().map(s => ({ ...s,
     running: runningServers.has(s.id),
     external: runningServers.get(s.id)?.external || '',
+    tunnels: playit.status().addresses,
     lan: lan ? lan + (s.port === 25565 ? '' : ':' + s.port) : ''
   }));
 });
@@ -1086,6 +1090,18 @@ ipcMain.handle('server-set-address', (_, id, address) => {
   saveServers(list);
   return true;
 });
+
+// ---------- Tunnel playit.gg ----------
+playit.setEventHandler((type) => {
+  if (type === 'state') { try { win?.webContents.send('playit-state', playit.status()); } catch {} }
+});
+ipcMain.handle('playit-status', () => playit.status());
+ipcMain.handle('playit-start', async () => {
+  await playit.start(userData(), getSettings().playitSecret, downloadFile);
+  try { win?.webContents.send('playit-state', playit.status()); } catch {}
+  return playit.status();
+});
+ipcMain.handle('playit-stop', () => playit.stop());
 ipcMain.handle('server-log-get', (_, id) => (runningServers.get(id)?.log || []).join('\n'));
 
 async function ensureSteamCmd() {

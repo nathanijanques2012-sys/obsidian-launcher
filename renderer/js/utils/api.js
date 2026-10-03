@@ -65,7 +65,8 @@ export async function apiCall(method, ...args) {
                         'modDownload', 'contentDownload', 'modDelete', 'contentDelete',
                         'friendAdd', 'friendDelete', 'inviteCreate', 'inviteAccept', 'friendSync',
                         'skinImport', 'skinDelete', 'skinApply', 'checkUpdate', 'installUpdate', 'repairVersion',
-                        'stopGame', 'serverAdd', 'serverDelete', 'serverStart', 'serverStop', 'serverCmd', 'serverSetAddress'].includes(method);
+                        'stopGame', 'serverAdd', 'serverDelete', 'serverStart', 'serverStop', 'serverCmd', 'serverSetAddress',
+                        'playitStart', 'playitStop'].includes(method);
     
     if (!isMutation) {
       cache.set(key, { data: result, timestamp: Date.now() });
@@ -223,6 +224,10 @@ export const API = {
   serverStop: (id) => apiCall('serverStop', id),
   serverCmd: (id, c) => apiCall('serverCmd', id, c),
   serverSetAddress: (id, address) => apiCall('serverSetAddress', id, address),
+  playitStatus: () => apiCall('playitStatus'),
+  playitStart: () => apiCall('playitStart'),
+  playitStop: () => apiCall('playitStop'),
+  onPlayitState: (cb) => window.api.onPlayitState(cb),
   serverLogGet: (id) => apiCall('serverLogGet', id),
   onServerLog: (cb) => window.api.onServerLog(cb),
   onServerState: (cb) => window.api.onServerState(cb),

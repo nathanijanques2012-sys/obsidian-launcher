@@ -277,6 +277,16 @@
           <button id="btnSrvAdd" class="primary">Criar servidor</button>
         </div>
         <div id="servers"></div>
+        <div class="card" style="margin-top:10px">
+          <h2>🌐 Tunnel playit.gg <span class="chip">jogar de fora sem port forward</span></h2>
+          <p class="muted">1) Crie conta em <code>playit.gg</code> → Agents → crie um agente e copie o <b>secret</b>. 2) Tunnels → Add tunnel → <b>Minecraft Java</b> apontando p/ <code>127.0.0.1:25565</code> (ou a porta do servidor). 3) Cole o secret abaixo e ative.</p>
+          <div class="login-row">
+            <input id="playitSecret" type="password" placeholder="secret do agente playit.gg (só 1ª vez)" style="flex:1" autocomplete="off">
+            <button id="btnPlayitSave" class="ghost">Salvar secret</button>
+            <button id="btnPlayitToggle" class="primary">Ativar tunnel</button>
+          </div>
+          <div id="playitStatus" class="muted" style="margin-top:8px">Tunnel desligado.</div>
+        </div>
       </div>
       <div class="card">
         <h2>Console <span id="srvConsoleName" class="chip"></span></h2>

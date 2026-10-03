@@ -5,20 +5,60 @@ import { API } from '../utils/api.js';
 import { toast } from '../utils/toast.js';
 
 let current = null;
+let playitSub = false;
 
 export async function init() {
   setupButtons();
   wireConsole();
+  if (!playitSub) { playitSub = true; try { API.onPlayitState(() => { refreshPlayit(); refreshServers(); }); } catch {} }
   await refreshServers();
+  await refreshPlayit();
 }
 
 export async function render() {
   await refreshServers();
+  await refreshPlayit();
+}
+
+async function savePlayitSecret() {
+  const v = document.getElementById('playitSecret').value.trim();
+  try { await API.saveSettings({ playitSecret: v }); toast.success('Secret salvo', v ? 'Tunnel pronto p/ ativar' : '(limpo)'); }
+  catch (e) { toast.error('Erro', e.message); }
+}
+
+async function togglePlayit() {
+  try {
+    const st = await API.playitStatus().catch(() => ({ running: false }));
+    if (st.running) { await API.playitStop(); }
+    else {
+      const v = document.getElementById('playitSecret').value.trim();
+      if (v) await API.saveSettings({ playitSecret: v });
+      await API.playitStart();
+      toast.success('Tunnel ativando...', 'O endereço aparece abaixo quando conectar');
+    }
+  } catch (e) { toast.error('Tunnel falhou', e.message); }
+  refreshPlayit();
+  refreshServers();
+}
+
+async function refreshPlayit() {
+  const box = document.getElementById('playitStatus');
+  const btn = document.getElementById('btnPlayitToggle');
+  if (!box) return;
+  let st;
+  try { st = await API.playitStatus(); } catch (e) { box.textContent = 'Erro: ' + e.message; return; }
+  if (btn) btn.textContent = st.running ? 'Parar tunnel' : 'Ativar tunnel';
+  if (!st.running) { box.textContent = 'Tunnel desligado.'; return; }
+  const addrs = (st.addresses || []).join(', ');
+  if (st.connected && addrs) box.innerHTML = `🟢 Conectado: <b>${escapeHtml(addrs)}</b>`;
+  else box.textContent = '🟡 Ligando... ' + (((st.log || []).slice(-1)[0]) || '');
 }
 
 function setupButtons() {
   const b = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
   b('btnSrvAdd', addServer);
+  b('btnPlayitSave', savePlayitSecret);
+  b('btnPlayitToggle', togglePlayit);
   b('btnSrvCmd', sendCmd);
   const inp = document.getElementById('srvCmd');
   if (inp) inp.onkeydown = (e) => { if (e.key === 'Enter') sendCmd(); };
@@ -63,6 +103,7 @@ async function refreshServers() {
         <button data-copyaddr="${s.id}" class="ghost">Copiar</button>
       </div>
       ${s.external ? `<div class="login-row" style="width:100%"><span class="chip">🌍 de fora: ${escapeHtml(s.external)}</span><button data-copyext="${escapeHtml(s.external)}" class="ghost">Copiar</button></div>` : ''}
+      ${(s.tunnels || []).map(t => `<div class="login-row" style="width:100%"><span class="chip">🌐 tunnel: ${escapeHtml(t)}</span><button data-tunnel="${escapeHtml(t)}" data-usesrv="${s.id}" class="ghost">Usar</button></div>`).join('')}
       <div class="login-row">
         <button data-view="${s.id}" class="ghost">Console</button>
         ${s.running
@@ -107,6 +148,11 @@ async function refreshServers() {
   });
   box.querySelectorAll('[data-copyext]').forEach(x => x.onclick = () => {
     navigator.clipboard.writeText(x.dataset.copyext).then(() => toast.success('Endereço externo copiado', x.dataset.copyext));
+  });
+  box.querySelectorAll('[data-usesrv]').forEach(x => x.onclick = async () => {
+    try { await API.serverSetAddress(x.dataset.usesrv, x.dataset.tunnel); toast.success('Endereço do tunnel aplicado', x.dataset.tunnel); }
+    catch (e) { toast.error('Erro', e.message); }
+    refreshServers();
   });
 }
 
