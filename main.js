@@ -561,6 +561,7 @@ ipcMain.handle('launch', async (_, opts = {}) => {
         ? 'Overlay Forge só existe p/ 1.21.1 (removido p/ não crashar) — resto funciona normal.'
         : `Overlay Obsidian desativado${gone ? ' (mod removido da pasta)' : ''} ✓`);
     }
+    if (acc.type === 'offline') await ensureCustomSkinLoader(settings.gameDir, settings.version);
   }
 
   win?.webContents.send('launch-log', `[4/4] Iniciando Minecraft ${settings.version} (${settings.loader})...`);
@@ -727,6 +728,13 @@ function quarantineMods(root, mc, loader) {
     if (!/\.jar$/i.test(name)) return false;
     const omc = ofMc(name);
     if (omc) return loader === 'forge' || loader === 'optifine' ? omc === mc : false;
+    // CustomSkinLoader entra no Forge via ModLauncher (sem mods.toml clássico):
+    // o jarKind() diria "só fabric" e a quarentena o removeria do Forge.
+    if (/^CustomSkinLoader.*\.jar$/i.test(name)) {
+      if (loader === 'forge' || loader === 'optifine') return true;
+      if (loader === 'fabric') return jarKind(full).fabric && fabricMcOk(full, mc);
+      return false;
+    }
     const k = jarKind(full);
     if (loader === 'vanilla') return false;
     if (loader === 'fabric') return k.fabric && fabricMcOk(full, mc);
@@ -1451,13 +1459,26 @@ ipcMain.handle('skin-apply', async (_, file, variant = 'classic') => {
   if (!fs.existsSync(src)) throw new Error('Skin não encontrada.');
   saveJson(settingsPath(), { ...getSettings(), selectedSkin: base, skinVariant: variant });
   if (acc.type === 'offline') {
-    // StraySkins: aplica skin offline dentro do jogo (loader Fabric)
-    if (getSettings().loader !== 'fabric') throw new Error('Skin offline precisa do loader Fabric. Troque no Jogar e aplique de novo.');
-    await ensureStraySkins(getSettings().gameDir, getSettings().version);
-    const dir = path.join(getSettings().gameDir, 'strayskins', 'skin');
-    fs.mkdirSync(dir, { recursive: true });
-    fs.copyFileSync(src, path.join(dir, acc.profile.name + '.png'));
-    return { offline: true, msg: `Skin aplicada p/ ${acc.profile.name} ✓ Carrega sozinha ao entrar no mundo.` };
+    const loader = getSettings().loader;
+    const mcVersion = getSettings().version;
+    if (loader === 'fabric') {
+      // StraySkins: aplica skin offline dentro do jogo
+      await ensureStraySkins(getSettings().gameDir, mcVersion);
+      const dir = path.join(getSettings().gameDir, 'strayskins', 'skin');
+      fs.mkdirSync(dir, { recursive: true });
+      fs.copyFileSync(src, path.join(dir, acc.profile.name + '.png'));
+      return { offline: true, msg: `Skin aplicada p/ ${acc.profile.name} ✓ Carrega sozinha ao entrar no mundo.` };
+    }
+    if (loader === 'forge' || loader === 'optifine') {
+      // CustomSkinLoader lê <gameDir>/CustomSkinLoader/LocalSkin/skins/Nick.png
+      // (a config padrão dele já inclui LocalSkin na lista)
+      await ensureCustomSkinLoader(getSettings().gameDir, mcVersion);
+      const dir = path.join(getSettings().gameDir, 'CustomSkinLoader', 'LocalSkin', 'skins');
+      fs.mkdirSync(dir, { recursive: true });
+      fs.copyFileSync(src, path.join(dir, acc.profile.name + '.png'));
+      return { offline: true, msg: `Skin aplicada p/ ${acc.profile.name} ✓ (se não aparecer no jogo, digite /csl reload).` };
+    }
+    throw new Error('Skin offline não funciona no Vanilla (sem mods o jogo usa a skin padrão). Troque p/ Fabric ou Forge no Jogar.');
   }
   const token = acc.mclc && (acc.mclc.access_token || acc.mclc.accessToken);
   if (!token) throw new Error('Token inválido, faça login Microsoft de novo.');
@@ -1500,6 +1521,36 @@ async function ensureStraySkins(root, mcVersion) {
   const dest = path.join(mods, file.filename);
   fs.writeFileSync(dest, Buffer.from(await dl.arrayBuffer()));
   log('StraySkins instalado ✓');
+  return dest;
+}
+
+async function ensureCustomSkinLoader(root, mcVersion) {
+  // CustomSkinLoader: skins offline no Forge/OptiFine.
+  // O mod lê <gameDir>/CustomSkinLoader/LocalSkin/skins/Nick.png sozinho
+  // (a config padrão dele já traz LocalSkin na lista de fontes).
+  const log = (m) => win?.webContents.send('launch-log', m);
+  const mods = path.join(root, 'mods');
+  fs.mkdirSync(mods, { recursive: true });
+  const url = `https://api.modrinth.com/v2/project/customskinloader/version?loaders=${JSON.stringify(['forge'])}&game_versions=${JSON.stringify([mcVersion])}&limit=3`;
+  const r = await fetch(url, { headers: { 'User-Agent': 'ObsidianLauncher/0.2' } });
+  if (!r.ok) { log('Aviso: CustomSkinLoader não tem build p/ ' + mcVersion); return null; }
+  const versions = await r.json();
+  const ver = (versions || []).find(v => (v.files || []).some(f => f.primary)) || versions[0];
+  if (!ver) return null;
+  const file = (ver.files || []).find(f => f.primary) || ver.files[0];
+  for (const f of fs.readdirSync(mods)) {
+    // Remove build velha com outro nome p/ não duplicar o mod
+    if (/^CustomSkinLoader.*\.jar$/i.test(f) && f !== file.filename) {
+      try { fs.unlinkSync(path.join(mods, f)); } catch {}
+    }
+  }
+  const dest = path.join(mods, file.filename);
+  if (fs.existsSync(dest)) { log('CustomSkinLoader ok ✓'); return dest; }
+  log(`Baixando CustomSkinLoader ${ver.version_number}...`);
+  const dl = await fetch(file.url);
+  if (!dl.ok) throw new Error('Download CustomSkinLoader falhou: ' + dl.status);
+  fs.writeFileSync(dest, Buffer.from(await dl.arrayBuffer()));
+  log('CustomSkinLoader instalado ✓');
   return dest;
 }
 
