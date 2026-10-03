@@ -106,6 +106,8 @@ async function refreshServers() {
   const nameEl = document.getElementById('srvConsoleName');
   if (nameEl) { const c = list.find(s => s.id === current); nameEl.textContent = c ? c.name : ''; }
   box.innerHTML = list.map(s => {
+    // IP p/ mandar pros amigos: endereço manual > tunnel > UPnP > rede local
+    const share = s.address || ((s.tunnels || [])[0]) || s.external || s.lan || ('localhost' + (s.port === 25565 ? '' : ':' + s.port));
     return `
     <div class="mod" style="padding:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
       <div><b>${escapeHtml(s.name)}</b>
@@ -127,6 +129,7 @@ async function refreshServers() {
       <div data-mppanel="${s.id}" style="display:none;width:100%"></div>
       <div class="login-row">
         <button data-view="${s.id}" class="ghost">Console</button>
+        <button data-copyip="${escapeHtml(share)}" class="primary" title="Copia o melhor endereço (manual > tunnel > externo > rede)">📋 Copiar IP</button>
         ${s.running
           ? `<button data-stop="${s.id}" class="primary" style="background:linear-gradient(180deg,#ef4444,#b91c1c)">Parar</button>`
           : `<button data-start="${s.id}" class="primary">Iniciar</button>
@@ -169,6 +172,9 @@ async function refreshServers() {
   });
   box.querySelectorAll('[data-copyext]').forEach(x => x.onclick = () => {
     navigator.clipboard.writeText(x.dataset.copyext).then(() => toast.success('Endereço externo copiado', x.dataset.copyext));
+  });
+  box.querySelectorAll('[data-copyip]').forEach(x => x.onclick = () => {
+    navigator.clipboard.writeText(x.dataset.copyip).then(() => toast.success('IP copiado', x.dataset.copyip + ' — manda pros amigos'));
   });
   box.querySelectorAll('[data-usesrv]').forEach(x => x.onclick = async () => {
     try { await API.serverSetAddress(x.dataset.usesrv, x.dataset.tunnel); toast.success('Endereço do tunnel aplicado', x.dataset.tunnel); }
