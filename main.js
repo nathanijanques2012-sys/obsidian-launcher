@@ -192,6 +192,25 @@ function isFullJDK(binDir) {
   try { return fs.existsSync(path.join(binDir, 'javac.exe')); } catch { return false; }
 }
 
+function probeJavaMajor(p) {
+  // Roda o java de verdade e confere a versão (existir não prova funcionar)
+  try {
+    const out = execFileSync(`"${p}"`, ['-version'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 20000 });
+    const m = String(out + '').match(/version "(\d+)/);
+    return m ? +m[1] : null;
+  } catch { return null; }
+}
+
+function isProvisionedJava(p) {
+  // Java baixado pelo launcher (.jdkXX/.jreXX): pode apagar e baixar de novo.
+  // Java do usuário (Program Files etc.): só ignora, nunca apaga.
+  try {
+    const root = path.dirname(path.dirname(String(p || '')));
+    return root.toLowerCase().startsWith(userData().toLowerCase())
+      && /[.](jdk|jre)\d+$/.test(root);
+  } catch { return false; }
+}
+
 function fallbackJava(id) {
   // Sem manifest (snapshot/custom): deduz pela versão
   const m = String(id).match(/^(\d+)\.(\d+)(?:\.(\d+))?/);
@@ -208,7 +227,15 @@ async function ensureJava(major = 21) {
   if (major === 16) { major = 17; } // 1.17 roda no 17 (16 morreu, sem build pública boa)
   const found = getBundledJava(major);
   // JDK 25 nem adianta reaproveitar: quebra a SDL3 do MC 26.x (erro 1114)
-  if (found && !(major === 25 && isFullJDK(path.dirname(found)))) return found;
+  if (found && !(major === 25 && isFullJDK(path.dirname(found)))) {
+    // Existir não basta: zip corrompido/descompactação parcial passa no
+    // existsSync mas o java morre ao rodar (era o .jdk17 com Internal Error).
+    if (probeJavaMajor(found) === major) return found;
+    win?.webContents.send('launch-log', `Java ${major} local quebrado, baixando de novo...`);
+    if (isProvisionedJava(found)) {
+      try { fs.rmSync(path.dirname(path.dirname(found)), { recursive: true, force: true }); } catch {}
+    }
+  }
   const wantJre = !!JRE_URLS[major];
   const tag = wantJre ? 'jre' : 'jdk';
   const url = wantJre ? JRE_URLS[major] : JDK_URLS[major];
@@ -231,6 +258,7 @@ async function ensureJava(major = 21) {
   fs.renameSync(path.join(tmp, inner.name), dir);
   fs.rmSync(zip, { force: true });
   if (!fs.existsSync(javaExe)) throw new Error('Java extraído mas javaw.exe não achado');
+  if (probeJavaMajor(javaExe) !== major) throw new Error(`Java ${major} baixado veio quebrado. Tente de novo.`);
   log(`Java ${major} pronto ✓`);
   return javaExe;
 }
