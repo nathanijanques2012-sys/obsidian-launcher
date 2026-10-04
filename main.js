@@ -6,7 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const { Client, Authenticator } = require('minecraft-launcher-core');
 const { autoUpdater } = require('electron-updater');
-const { execSync, execFileSync } = require('child_process');
+const { execSync, execFileSync, spawnSync } = require('child_process');
 const upnp = require('./upnp'); // UPnP IGD p/ expor servidor sem mexer no roteador
 const playit = require('./playit'); // tunnel playit.gg (sem port forward)
 
@@ -193,10 +193,21 @@ function isFullJDK(binDir) {
 }
 
 function probeJavaMajor(p) {
-  // Roda o java de verdade e confere a versão (existir não prova funcionar)
+  // Roda o java de verdade e confere a versão (existir não prova funcionar).
+  // Detalhes que já morderam: 1) javaw.exe não tem console — testa o java.exe
+  // vizinho; 2) -version sai no STDERR, não no stdout; 3) caminho com espaço
+  // não pode ir com aspas no `file` (vira ENOENT) — spawnSync resolve sem aspas.
   try {
-    const out = execFileSync(`"${p}"`, ['-version'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 20000 });
-    const m = String(out + '').match(/version "(\d+)/);
+    let target = String(p || '');
+    try {
+      if (path.basename(target).toLowerCase() === 'javaw.exe') {
+        const j = path.join(path.dirname(target), 'java.exe');
+        if (fs.existsSync(j)) target = j;
+      }
+    } catch {}
+    const r = spawnSync(target, ['-version'], { encoding: 'utf8', timeout: 20000 });
+    if (r.error) return null;
+    const m = String((r.stdout || '') + (r.stderr || '')).match(/version "(\d+)/);
     return m ? +m[1] : null;
   } catch { return null; }
 }
@@ -527,13 +538,7 @@ ipcMain.handle('launch', async (_, opts = {}) => {
   // Java certo p/ a versão (1.21.x=21, 26.x=25)
   const javaMajor = await getRequiredJava(settings.version);
   win?.webContents.send('launch-log', `[2/4] Java ${javaMajor} p/ ${settings.version}`);
-  const probeMajor = (p) => {
-    try {
-      const out = execFileSync(`"${p}"`, ['-version'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 15000 });
-      const m = String(out + '').match(/version "(\d+)/);
-      return m ? +m[1] : null;
-    } catch { return null; }
-  };
+  const probeMajor = (p) => probeJavaMajor(p);
   let javaPath = '';
   if (settings.javaPath && fs.existsSync(settings.javaPath) && probeMajor(settings.javaPath) === javaMajor) {
     javaPath = settings.javaPath;
