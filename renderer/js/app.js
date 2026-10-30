@@ -48,7 +48,6 @@ async function init() {
   
   // Setup enhancements
   setupGlobalSearch();
-  setupSidebarToggle();
   
   console.log('[Obsidian] Launcher pronto!');
 }
@@ -97,6 +96,8 @@ async function navigateTo(pageName) {
   });
   
   state.currentPage = pageName;
+  // Diz ao CSS qual aba está aberta (o dock de jogar só aparece na aba Jogar)
+  document.body.dataset.page = pageName;
   
   // Lazy load do módulo da página
   await renderPage(pageName);
@@ -268,6 +269,10 @@ function applySettingsToUI(s) {
 function updateAccountUI(account) {
   const userEl = document.getElementById('user');
   if (userEl) userEl.textContent = account ? `${account.name} (${account.type})` : 'Não logado';
+  const avatarEl = document.getElementById('accAvatar');
+  if (avatarEl) avatarEl.textContent = account?.name ? String(account.name).trim().charAt(0).toUpperCase() : '?';
+  const chipEl = document.querySelector('.account-chip');
+  if (chipEl) chipEl.title = account ? `${account.name} (${account.type})` : 'Nenhuma conta conectada';
 }
 
 function updateContextLabels() {
@@ -506,6 +511,10 @@ function setupGlobalSearch() {
   closeBtn.onclick = closeModal;
   modal.onclick = (e) => { if (e.target === modal) closeModal(); };
   clearBtn.onclick = () => { input.value = ''; resultsEl.innerHTML = ''; clearBtn.style.display = 'none'; input.focus(); };
+
+  // Barra de busca do topo abre a mesma busca global
+  const searchTrigger = document.getElementById('btnGlobalSearch');
+  if (searchTrigger) searchTrigger.onclick = openModal;
   
   document.addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'k') {

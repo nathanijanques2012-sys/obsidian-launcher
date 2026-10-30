@@ -32,8 +32,12 @@ export function populateVersionSelect(versions, currentVersion = null) {
  * Atualiza labels de contexto (versão + loader)
  */
 export function updateContextLabels(settings) {
-  const label = `${settings?.loader || 'fabric'} • ${settings?.version || '26.3'}`;
-  ['modsCtx', 'shadersCtx', 'packsCtx', 'modpacksCtx'].forEach(id => {
+  // Sem settings explícito, lê a escolha atual do dock (o valor antigo
+  // congelado em 26.3/fabric era o que deixava os chips errados).
+  const version = settings?.version || document.getElementById('version')?.value || '26.3';
+  const loader = settings?.loader || document.getElementById('loader')?.value || 'fabric';
+  const label = `${loader} • ${version}`;
+  ['playCtx', 'modsCtx', 'shadersCtx', 'packsCtx', 'modpacksCtx'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.textContent = label;
   });
@@ -45,6 +49,8 @@ export function updateContextLabels(settings) {
 export function updateAccountUI(account) {
   const userEl = document.getElementById('user');
   if (userEl) userEl.textContent = account ? `${account.name} (${account.type})` : 'Não logado';
+  const avatarEl = document.getElementById('accAvatar');
+  if (avatarEl) avatarEl.textContent = account?.name ? String(account.name).trim().charAt(0).toUpperCase() : '?';
 }
 
 /**

@@ -7,436 +7,711 @@
 <link rel="stylesheet" href="styles.css">
 <link rel="preload" as="script" href="js/app.js">
 </head>
-<body>
+<body data-page="play">
+
+<!-- Sprite de ícones -->
+<svg class="svg-sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.4v13.2L19 12 8 5.4Z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-mods" viewBox="0 0 24 24"><path d="M19.4 7.9c-.1.3 0 .6.3.9l1.6 1.6c.5.5.7 1.1.7 1.7s-.2 1.2-.7 1.7l-1.6 1.6a1 1 0 0 1-.9.3c-.5-.1-.8-.5-1-.9a2.5 2.5 0 1 0-3.2 3.2c.4.2.8.5 1 1a1 1 0 0 1-.3.9l-1.6 1.6c-.5.5-1.1.7-1.7.7s-1.2-.2-1.7-.7l-1.6-1.6a1 1 0 0 0-.9-.3c-.5.1-.8.5-1 1a2.5 2.5 0 1 1-3.2-3.2c.4-.2.8-.5 1-1a1 1 0 0 0-.3-.9L2.7 13.8c-.5-.5-.7-1.1-.7-1.7s.2-1.2.7-1.7l1.6-1.6a1 1 0 0 1 .9-.3c.5.1.9.5 1.1 1a2.5 2.5 0 1 0 3.2-3.2c-.5-.2-.9-.6-1-1.1a1 1 0 0 1 .3-.9l1.6-1.6c.5-.5 1.1-.7 1.7-.7s1.2.2 1.7.7l1.6 1.6c.2.2.6.3.9.3.5-.1.8-.5 1-1a2.5 2.5 0 1 1 3.2 3.2c-.5.2-.9.5-1 1Z"/></symbol>
+  <symbol id="i-shaders" viewBox="0 0 24 24"><path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z"/><path d="M19 15.5 19.8 18l2.5.8-2.5.8L19 22l-.8-2.4-2.5-.8 2.5-.8.8-2.5Z"/><path d="M5 15.5 5.7 18l2.3.8-2.3.8L5 22l-.7-2.4L2 18.8l2.3-.8L5 15.5Z"/></symbol>
+  <symbol id="i-packs" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="8.5" cy="10" r="1.2" fill="currentColor" stroke="none"/><circle cx="12" cy="7.8" r="1.2" fill="currentColor" stroke="none"/><circle cx="15.5" cy="10" r="1.2" fill="currentColor" stroke="none"/><path d="M12 21a3 3 0 0 1 0-6c1.7 0 2 1 3 1s1.5-.5 2.5-.5"/></symbol>
+  <symbol id="i-modpacks" viewBox="0 0 24 24"><path d="m21 8-9-5-9 5 9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></symbol>
+  <symbol id="i-skins" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20.5c.6-4 3.6-6 7.5-6s6.9 2 7.5 6"/></symbol>
+  <symbol id="i-friends" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M2.8 20c.5-3.4 2.9-5.2 6.2-5.2s5.7 1.8 6.2 5.2"/><path d="M16 5.3a3.2 3.2 0 0 1 0 6.2"/><path d="M17.5 14.6c2.2.5 3.6 2.3 3.9 5.4"/></symbol>
+  <symbol id="i-servers" viewBox="0 0 24 24"><rect x="3" y="3.5" width="18" height="7" rx="1.6"/><rect x="3" y="13.5" width="18" height="7" rx="1.6"/><path d="M7 7h.01M7 17h.01"/></symbol>
+  <symbol id="i-bedrock" viewBox="0 0 24 24"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5Z"/><path d="m3 7 9 5 9-5M12 12v10"/></symbol>
+  <symbol id="i-theme" viewBox="0 0 24 24"><path d="M9.1 11.9 17.2 3.8a2.8 2.8 0 0 1 4 4l-8.1 8.1"/><path d="M9.1 11.9a3 3 0 0 0-4.2 0l-1.6 1.6a3 3 0 0 0 0 4.2l2.8 2.8a3 3 0 0 0 4.2 0l.1-4.4-1.3-4.2Z"/></symbol>
+  <symbol id="i-config" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></symbol>
+  <symbol id="i-about" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></symbol>
+  <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M6.4 6.4a8 8 0 1 0 11.2 0"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2.5h8.5A1.5 1.5 0 0 1 21 10v8.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5v-11Z"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+</svg>
+
 <div class="app">
-  <aside class="sidebar">
-    <div class="logo"><img class="logo-img" src="../assets/icon.png" alt="Obsidian"><div><b>OBSIDIAN</b><small>launcher</small></div></div>
-    <nav>
-      <button class="nav active" data-page="play">▶ Jogar</button>
-      <button class="nav" data-page="mods">🧩 Mods</button>
-      <button class="nav" data-page="shaders">✨ Shaders</button>
-      <button class="nav" data-page="packs">🎨 Texturas</button>
-      <button class="nav" data-page="modpacks">📦 Modpacks</button>
-      <button class="nav" data-page="skins">🎭 Skins</button>
-      <button class="nav" data-page="friends">👥 Amigos</button>
-      <button class="nav" data-page="servers">🖥️ Servidores</button>
-      <button class="nav" data-page="bedrock">🧱 Bedrock</button>
-      <button class="nav" data-page="themes">🎨 Tema</button>
-      <button class="nav" data-page="config">⚙ Config</button>
-      <button class="nav" data-page="about">ⓘ Sobre</button>
-    </nav>
-    <div class="account">
-      <div id="user" class="user">Não logado</div>
-      <div class="acc-row">
-        <button id="btnLogout" class="ghost" title="Sair">Sair</button>
-        <button id="btnUpdate" class="ghost" title="Checar atualização">↻</button>
-      </div>
-      <div class="acc-row">
-        <button id="btnRestart" class="primary" style="display:none;width:100%">Reiniciar e atualizar</button>
-      </div>
-      <small id="updStatus" class="muted"></small>
+  <!-- Faixa de navegação (estilo launcher oficial) -->
+  <aside class="sidebar rail">
+    <div class="rail-brand" title="Obsidian Launcher">
+      <img src="../assets/icon.png" alt="Obsidian">
     </div>
+
+    <nav class="rail-nav">
+      <button class="nav rail-item active" data-page="play" title="Jogar">
+        <svg class="ico"><use href="#i-play"/></svg><span class="rail-label">Jogar</span>
+      </button>
+
+      <div class="rail-sep"></div>
+
+      <button class="nav rail-item" data-page="mods" title="Mods">
+        <svg class="ico"><use href="#i-mods"/></svg><span class="rail-label">Mods</span>
+      </button>
+      <button class="nav rail-item" data-page="shaders" title="Shaders">
+        <svg class="ico"><use href="#i-shaders"/></svg><span class="rail-label">Shaders</span>
+      </button>
+      <button class="nav rail-item" data-page="packs" title="Texturas">
+        <svg class="ico"><use href="#i-packs"/></svg><span class="rail-label">Texturas</span>
+      </button>
+      <button class="nav rail-item" data-page="modpacks" title="Modpacks">
+        <svg class="ico"><use href="#i-modpacks"/></svg><span class="rail-label">Packs</span>
+      </button>
+      <button class="nav rail-item" data-page="skins" title="Skins">
+        <svg class="ico"><use href="#i-skins"/></svg><span class="rail-label">Skins</span>
+      </button>
+
+      <div class="rail-sep"></div>
+
+      <button class="nav rail-item" data-page="friends" title="Amigos">
+        <svg class="ico"><use href="#i-friends"/></svg><span class="rail-label">Amigos</span>
+      </button>
+      <button class="nav rail-item" data-page="servers" title="Servidores">
+        <svg class="ico"><use href="#i-servers"/></svg><span class="rail-label">Servidores</span>
+      </button>
+
+      <div class="rail-sep"></div>
+
+      <button class="nav rail-item" data-page="bedrock" title="Bedrock">
+        <svg class="ico"><use href="#i-bedrock"/></svg><span class="rail-label">Bedrock</span>
+      </button>
+      <button class="nav rail-item" data-page="themes" title="Tema">
+        <svg class="ico"><use href="#i-theme"/></svg><span class="rail-label">Tema</span>
+      </button>
+      <button class="nav rail-item" data-page="config" title="Configurações">
+        <svg class="ico"><use href="#i-config"/></svg><span class="rail-label">Config</span>
+      </button>
+      <button class="nav rail-item" data-page="about" title="Sobre">
+        <svg class="ico"><use href="#i-about"/></svg><span class="rail-label">Sobre</span>
+      </button>
+    </nav>
   </aside>
 
-  <main class="content">
-    <section id="page-play" class="page active">
-      <div class="hero">
-        <img class="hero-logo" src="../assets/icon.png" alt="Obsidian">
-        <div style="flex:1">
-          <h1>Pronto para minerar?</h1>
-          <p class="muted">Vanilla • Fabric • Forge • Modrinth • Auto-update</p>
-        </div>
-        <div class="hero-actions">
-          <select id="profileSelect" title="Perfil" style="min-width:160px;"></select>
-          <select id="version" title="Versão"></select>
-          <select id="loader" title="Loader">
-            <option value="vanilla">Vanilla</option>
-            <option value="fabric">Fabric</option>
-            <option value="forge">Forge</option>
-            <option value="optifine">Forge + OptiFine</option>
-          </select>
-          <button id="btnPlay" class="play">JOGAR</button>
-          <button id="btnStop" class="stop" style="display:none">■ PARAR</button>
-        </div>
+  <div class="shell">
+    <!-- Barra superior -->
+    <header class="topbar">
+      <div class="topbar-brand">
+        <img src="../assets/icon.png" alt="">
+        <div class="topbar-name"><b>OBSIDIAN</b><small>LAUNCHER</small></div>
       </div>
 
-      <!-- Dashboard Grid -->
-      <div class="dashboard-grid" style="display:grid;grid-template-columns:1fr 320px;gap:16px;margin-bottom:16px;">
-        <!-- Left Column -->
-        <div>
-          <!-- Stats Cards -->
-          <div class="card" style="margin-bottom:16px;">
-            <h2>Resumo <span id="modsCtx" class="chip"></span></h2>
-            <div id="dashboardStats"></div>
-          </div>
-          
-          <!-- Recent Activity -->
-          <div class="card" style="margin-bottom:16px;">
-            <h2>Atividade Recente</h2>
-            <div id="dashboardActivity" style="max-height:200px;overflow:auto;"></div>
-          </div>
-          
-          <!-- Quick Actions -->
-          <div class="card">
-            <h2>Ações Rápidas</h2>
-            <div id="dashboardActions"></div>
-          </div>
-        </div>
-        
-        <!-- Right Column -->
-        <div>
-          <!-- Account Card -->
-          <div class="card" style="margin-bottom:16px;">
-            <h2>Conta</h2>
-            <div id="dashboardUser"></div>
-            <div class="login-row" style="margin-top:12px;">
-              <button id="btnLogin" class="primary">Login Microsoft</button>
-              <span class="or">ou</span>
-              <input id="offlineName" placeholder="nick offline" maxlength="16">
-              <button id="btnOffline">Entrar offline</button>
-            </div>
-          </div>
-          
-          <!-- Friends Online -->
-          <div class="card" style="margin-bottom:16px;">
-            <h2>Amigos <span class="chip">Online</span></h2>
-            <div id="dashboardFriends" style="max-height:300px;overflow:auto;"></div>
-            <button class="ghost" style="width:100%;margin-top:8px;" onclick="window.ObsidianApp?.navigateTo?.('friends')">Ver todos</button>
-          </div>
-          
-          <!-- Status/Log -->
-          <div class="card">
-            <h2>Status</h2>
-            <div class="bar"><div id="barFill"></div></div>
-            <div id="progress" class="muted">Parado</div>
-            <div class="login-row">
-              <button id="btnGameDir" class="ghost">Pasta do jogo</button>
-              <button id="btnCrash" class="ghost">Ver último crash</button>
-            </div>
-            <pre id="log">Bem-vindo ao Obsidian Launcher ⬢&#10;</pre>
-          </div>
-        </div>
-      </div>
-    </section>
+      <button class="search-trigger" id="btnGlobalSearch" type="button">
+        <svg class="ico"><use href="#i-search"/></svg>
+        <span>Buscar mods, skins, packs...</span>
+        <kbd>Ctrl K</kbd>
+      </button>
 
-    <section id="page-mods" class="page">
-      <div class="card">
-        <h2>Mods — Modrinth <span id="modsCtx" class="chip"></span></h2>
-        <p class="muted">Baixa direto para <code>mods/</code> da versão/loader selecionados no Jogar. Precisa de Fabric/Forge para carregar.</p>
-        <div class="login-row">
-          <input id="modQuery" placeholder="ex: sodium, iris, appleskin">
-          <button id="btnSearch" class="primary">Buscar</button>
-          <button id="btnModsFolder" class="ghost">Abrir pasta</button>
-          <button id="btnModsRefresh" class="ghost">Atualizar</button>
-        </div>
-        <div class="login-row" style="margin-top:8px">
-          <input id="modpackCode" placeholder="código do servidor (OBM1...) p/ baixar os mods exigidos" style="flex:1">
-          <button id="btnModpackCode" class="primary">Instalar do código</button>
-        </div>
-        <div id="mods"></div>
+      <div class="topbar-spacer"></div>
+
+      <div class="account-chip" title="Conta">
+        <span class="avatar" id="accAvatar">?</span>
+        <span class="account-meta">
+          <b id="user">Não logado</b>
+          <small>Minecraft Java</small>
+        </span>
       </div>
-      <div class="card">
-        <h2>Instalados (<span id="modsCount">0</span>)</h2>
-        <div id="modsInstalled"></div>
+
+      <div class="topbar-actions">
+        <button id="btnUpdate" class="icon-btn" type="button" title="Checar atualização">
+          <svg class="ico"><use href="#i-refresh"/></svg>
+        </button>
+        <button id="btnLogout" class="icon-btn" type="button" title="Sair da conta">
+          <svg class="ico"><use href="#i-power"/></svg>
+        </button>
+        <button id="btnRestart" class="primary small" type="button" style="display:none">Reiniciar e atualizar</button>
       </div>
-      <div class="card">
-        <h2>Overlay Obsidian (in-game)</h2>
-        <p class="muted">Menu estilo Labymod dentro do Minecraft = mod Fabric em Java. Scaffold em <code>obsidian-mod/</code>. Build gera <code>obsidian-overlay.jar</code> — coloque em mods/ e jogue com loader Fabric.</p>
-        <div class="login-row">
+      <small id="updStatus" class="upd-status"></small>
+    </header>
+
+    <main class="content">
+
+      <!-- ============ JOGAR ============ -->
+      <section id="page-play" class="page active">
+        <div class="hero">
+          <div class="hero-art" aria-hidden="true">
+            <svg viewBox="0 0 1200 320" preserveAspectRatio="xMidYMax slice">
+              <defs>
+                <linearGradient id="heroFar" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#8b5cf6" stop-opacity=".38"/>
+                  <stop offset="1" stop-color="#120e1a" stop-opacity="0"/>
+                </linearGradient>
+                <linearGradient id="heroNear" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#4c1d95" stop-opacity=".85"/>
+                  <stop offset="1" stop-color="#0a0810"/>
+                </linearGradient>
+              </defs>
+              <g fill="url(#heroFar)">
+                <path d="M0 214h72v-38h56v38h84v-74h66v74h92v-48h72v48h96v-104h82v104h112v-58h76v58h108v-84h92v84h96v-42h72v42h104v106H0Z"/>
+              </g>
+              <g fill="url(#heroNear)">
+                <path d="M0 262h112v-32h72v32h96v-58h82v58h122v-42h86v42h118v-64h92v64h122v-38h82v38h118v-68h92v68h116v58H0Z" opacity=".92"/>
+              </g>
+              <g fill="#07060b" opacity=".5">
+                <rect x="180" y="230" width="16" height="16"/><rect x="196" y="246" width="16" height="16"/>
+                <rect x="470" y="204" width="16" height="16"/><rect x="486" y="220" width="16" height="16"/>
+                <rect x="812" y="198" width="16" height="16"/><rect x="828" y="214" width="16" height="16"/>
+                <rect x="1040" y="194" width="16" height="16"/><rect x="1056" y="210" width="16" height="16"/>
+              </g>
+            </svg>
+          </div>
+
+          <div class="hero-copy">
+            <span class="eyebrow">Minecraft • Java Edition</span>
+            <h1>Pronto para minerar?</h1>
+            <p>Vanilla, Fabric, Forge e Modrinth. Escolha o perfil, aperte Jogar e o resto é com a gente.</p>
+            <div class="hero-tags">
+              <span class="chip">Auto-update</span>
+              <span class="chip">Skins offline</span>
+              <span class="chip">Tunnel</span>
+            </div>
+          </div>
+
+          <div class="hero-mark">
+            <img src="../assets/icon.png" alt="Obsidian">
+            <span class="hero-mark-label">OBSIDIAN<br><b>LAUNCHER</b></span>
+          </div>
+        </div>
+
+        <div class="section-head">
+          <h2>Novidades</h2>
+          <span class="muted">Atalhos para o que importa</span>
+        </div>
+
+        <div class="news-grid">
+          <button class="news-card" type="button" onclick="window.ObsidianApp?.navigateTo?.('modpacks')">
+            <div class="news-art art-violet">
+              <svg viewBox="0 0 24 24" class="ico"><use href="#i-modpacks"/></svg>
+            </div>
+            <div class="news-body">
+              <span class="chip">Modpacks</span>
+              <h3>Um clique, um mundo novo</h3>
+              <p>Baixe modpacks do Modrinth com mods e configs já instalados.</p>
+            </div>
+          </button>
+
+          <button class="news-card" type="button" onclick="window.ObsidianApp?.navigateTo?.('servers')">
+            <div class="news-art art-plum">
+              <svg viewBox="0 0 24 24" class="ico"><use href="#i-servers"/></svg>
+            </div>
+            <div class="news-body">
+              <span class="chip">Servidores</span>
+              <h3>Chame os amigos</h3>
+              <p>Suba seu servidor, copie o IP e libere o acesso pelo tunnel.</p>
+            </div>
+          </button>
+
+          <button class="news-card" type="button" onclick="window.ObsidianApp?.navigateTo?.('skins')">
+            <div class="news-art art-orchid">
+              <svg viewBox="0 0 24 24" class="ico"><use href="#i-skins"/></svg>
+            </div>
+            <div class="news-body">
+              <span class="chip">Skins</span>
+              <h3>Sua cara no jogo</h3>
+              <p>Importe um PNG e aplique no Forge, OptiFine ou Fabric.</p>
+            </div>
+          </button>
+        </div>
+
+        <div class="section-head">
+          <h2>Sua biblioteca</h2>
+          <span class="chip" id="playCtx"></span>
+        </div>
+        <div class="panel stats-panel">
+          <div id="dashboardStats"></div>
+        </div>
+
+        <div class="play-columns">
+          <div class="col-main">
+            <div class="panel">
+              <h2>Atividade recente</h2>
+              <div id="dashboardActivity"></div>
+            </div>
+            <div class="panel">
+              <h2>Ações rápidas</h2>
+              <div id="dashboardActions"></div>
+            </div>
+          </div>
+
+          <aside class="col-side">
+            <div class="panel">
+              <h2>Conta</h2>
+              <div id="dashboardUser"></div>
+              <button id="btnLogin" class="primary wide" style="margin-top:10px">Login Microsoft</button>
+              <div class="or-row"><span>ou jogue offline</span></div>
+              <div class="login-row">
+                <input id="offlineName" placeholder="nick offline" maxlength="16">
+                <button id="btnOffline" class="ghost">Entrar</button>
+              </div>
+            </div>
+
+            <div class="panel">
+              <h2>Amigos <span class="chip">online</span></h2>
+              <div id="dashboardFriends" class="scroll-y"></div>
+              <button class="ghost wide" style="margin-top:8px" onclick="window.ObsidianApp?.navigateTo?.('friends')">Ver todos</button>
+            </div>
+
+            <div class="panel">
+              <h2>Console</h2>
+              <div class="login-row">
+                <button id="btnGameDir" class="ghost">
+                  <svg class="ico"><use href="#i-folder"/></svg> Pasta do jogo
+                </button>
+                <button id="btnCrash" class="ghost">
+                  <svg class="ico"><use href="#i-alert"/></svg> Crash report
+                </button>
+              </div>
+              <pre id="log">Bem-vindo ao Obsidian Launcher ⬢&#10;</pre>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- ============ MODS ============ -->
+      <section id="page-mods" class="page">
+        <header class="page-head">
+          <span class="eyebrow">Biblioteca</span>
+          <div class="head-row">
+            <h1>Mods</h1>
+            <span id="modsCtx" class="chip"></span>
+          </div>
+          <p class="muted">Baixa direto para <code>mods/</code> da versão/loader selecionados. Precisa de Fabric ou Forge para carregar.</p>
+        </header>
+
+        <div class="panel">
+          <h2>Buscar no Modrinth</h2>
+          <div class="toolbar">
+            <input id="modQuery" placeholder="ex: sodium, iris, appleskin">
+            <button id="btnSearch" class="primary">Buscar</button>
+            <button id="btnModsFolder" class="ghost">Abrir pasta</button>
+            <button id="btnModsRefresh" class="ghost">Atualizar</button>
+          </div>
+          <div class="toolbar mt8">
+            <input id="modpackCode" placeholder="código do servidor (OBM1...) p/ baixar os mods exigidos">
+            <button id="btnModpackCode" class="primary">Instalar do código</button>
+          </div>
+          <div id="mods"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Instalados <span class="chip" id="modsCount">0</span></h2>
+          <div id="modsInstalled"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Overlay Obsidian (in-game)</h2>
+          <p class="muted">Menu estilo Labymod dentro do Minecraft = mod Fabric em Java. Scaffold em <code>obsidian-mod/</code>. O build gera <code>obsidian-overlay.jar</code> — coloque em mods/ e jogue com loader Fabric.</p>
           <button id="btnOverlayInfo" class="primary">Como ativar</button>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section id="page-shaders" class="page">
-      <div class="card">
-        <h2>Shaders — Modrinth <span id="shadersCtx" class="chip"></span></h2>
-        <p class="muted">Vai para <code>shaderpacks/</code>. No jogo precisa de Iris ou OptiFine.</p>
-        <div class="login-row">
-          <input id="shaderQuery" placeholder="ex: bliss, complementary">
-          <button id="btnShaderSearch" class="primary">Buscar</button>
-          <button id="btnShadersFolder" class="ghost">Abrir pasta</button>
-          <button id="btnShadersRefresh" class="ghost">Atualizar</button>
-        </div>
-        <div id="shaders"></div>
-      </div>
-      <div class="card"><h2>Instalados (<span id="shadersCount">0</span>)</h2><div id="shadersInstalled"></div></div>
-    </section>
-
-    <section id="page-packs" class="page">
-      <div class="card">
-        <h2>Resource packs — Modrinth <span id="packsCtx" class="chip"></span></h2>
-        <p class="muted">Vai para <code>resourcepacks/</code>. Ative em Opções → Pacotes de recursos.</p>
-        <div class="login-row">
-          <input id="packQuery" placeholder="ex: faithful, fresh animations">
-          <button id="btnPackSearch" class="primary">Buscar</button>
-          <button id="btnPacksFolder" class="ghost">Abrir pasta</button>
-          <button id="btnPacksRefresh" class="ghost">Atualizar</button>
-        </div>
-        <div id="packs"></div>
-      </div>
-      <div class="card"><h2>Instalados (<span id="packsCount">0</span>)</h2><div id="packsInstalled"></div></div>
-    </section>
-
-    <section id="page-modpacks" class="page">
-      <div class="card">
-        <h2>Modpacks — Modrinth <span id="modpacksCtx" class="chip"></span></h2>
-        <p class="muted">Baixa o <code>.mrpack</code> e instala tudo: mods + configs na pasta do jogo. Demora — acompanhe no log da aba Jogar.</p>
-        <div class="login-row">
-          <input id="modpackQuery" placeholder="ex: better mc, dawncraft">
-          <button id="btnModpackSearch" class="primary">Buscar</button>
-          <button id="btnModpacksFolder" class="ghost">Abrir pasta</button>
-          <button id="btnModpacksRefresh" class="ghost">Atualizar</button>
-        </div>
-        <div id="modpacks"></div>
-      </div>
-      <div class="card"><h2>Baixados (<span id="modpacksCount">0</span>)</h2><div id="modpacksInstalled"></div></div>
-    </section>
-
-    <section id="page-skins" class="page">
-      <div class="card">
-        <h2>Skins <span class="chip">64x64</span></h2>
-        <p class="muted">Conta Microsoft = aplica de verdade na conta. Offline = salva no launcher (vale onde o servidor aceita skin offline).</p>
-        <div class="login-row">
-          <select id="skinVariant" title="Modelo">
-            <option value="classic">Clássico (braço 4px)</option>
-            <option value="slim">Slim (braço 3px)</option>
-          </select>
-          <button id="btnSkinImport" class="primary">Importar PNG</button>
-          <button id="btnSkinsRefresh" class="ghost">Atualizar</button>
-        </div>
-        <div id="skinMsg" class="muted"></div>
-        <div id="skins" class="gallery"></div>
-      </div>
-    </section>
-
-    <section id="page-friends" class="page">
-      <div class="card">
-        <h2>Sala online <span class="chip">tempo real</span></h2>
-        <p class="muted">Crie uma sala, passe o código e veja quem tá online, converse e entre no servidor do amigo com 1 clique. Precisa do relay ligado (<code>friend-server/server.js</code>).</p>
-        <div class="login-row">
-          <input id="relayUrl" placeholder="ws://127.0.0.1:8091" style="flex:2">
-          <input id="relayNick" placeholder="seu nick" maxlength="16" style="flex:1">
-          <button id="btnRelayConnect" class="primary">Conectar</button>
-          <span id="relayStatus" class="muted"></span>
-        </div>
-        <div id="roomBox" style="display:none">
-          <div class="login-row" style="margin-top:10px">
-            <button id="btnRoomCreate" class="ghost">Criar sala</button>
-            <input id="roomCode" placeholder="código (ex: 42J3K9)" maxlength="8" style="width:140px">
-            <button id="btnRoomJoin" class="ghost">Entrar</button>
-            <button id="btnRoomLeave" class="ghost">Sair</button>
-            <b id="roomInfo"></b>
+      <!-- ============ SHADERS ============ -->
+      <section id="page-shaders" class="page">
+        <header class="page-head">
+          <span class="eyebrow">Biblioteca</span>
+          <div class="head-row">
+            <h1>Shaders</h1>
+            <span id="shadersCtx" class="chip"></span>
           </div>
-          <div id="roomMembers" style="margin-top:10px"></div>
-          <div class="login-row" style="margin-top:10px">
-            <input id="shareHost" placeholder="IP do meu servidor" style="flex:2">
-            <input id="sharePort" placeholder="porta" value="25565" style="width:90px">
-            <button id="btnShare" class="ghost">Divulgar</button>
-            <button id="btnUnshare" class="ghost">Ocultar</button>
-          </div>
-          <div id="roomChat" style="margin-top:10px;max-height:180px;overflow:auto;background:#0b0e14;border:1px solid var(--line);border-radius:10px;padding:10px"></div>
-          <div class="login-row" style="margin-top:8px">
-            <input id="chatText" placeholder="mensagem..." maxlength="300" style="flex:1">
-            <button id="btnChatSend" class="primary">Enviar</button>
-          </div>
-        </div>
-      </div>
-      <div class="card">
-        <h2>Amigos <span class="chip">só Obsidian</span></h2>
-        <p class="muted">Lista salva neste launcher. O status é real (ping no servidor). Passe seu convite p/ amigos com Obsidian.</p>
-        <div class="login-row">
-          <input id="friendNick" placeholder="nick do amigo" maxlength="24">
-          <input id="friendAddr" placeholder="IP:porta (ex: jogo.gg:25565)">
-          <button id="btnFriendAdd" class="primary">Adicionar</button>
-          <button id="btnFriendsRefresh" class="ghost">Atualizar status</button>
-        </div>
-        <div class="login-row">
-          <input id="inviteAddr" placeholder="seu servidor p/ convite">
-          <button id="btnInviteCreate" class="ghost">Criar convite</button>
-          <input id="inviteCode" placeholder="cole o código OBS1-...">
-          <button id="btnInviteAccept" class="ghost">Entrar</button>
-        </div>
-        <div id="inviteOut" class="muted"></div>
-        <div id="friends"></div>
-      </div>
-    </section>
+          <p class="muted">Vai para <code>shaderpacks/</code>. No jogo precisa de Iris ou OptiFine.</p>
+        </header>
 
-    <section id="page-servers" class="page">      <div class="card">
-        <h2>Servidores <span class="chip">MC Java • Hytale</span></h2>
-        <p class="muted">Suba seu próprio servidor e jogue com amigos. Minecraft baixa tudo sozinho. Hytale precisa do App ID SteamCMD.</p>
-        <div class="login-row">
-          <input id="srvName" placeholder="nome (ex: survival)" style="flex:1">
-          <select id="srvType" title="Tipo">
-            <option value="minecraft-java">Minecraft Java</option>
-            <option value="hytale-steamcmd">Hytale (SteamCMD)</option>
-            <option value="custom">Programa custom</option>
-          </select>
-          <input id="srvVersion" placeholder="versão" value="26.3" style="width:90px">
-          <input id="srvPort" placeholder="porta" value="25565" style="width:80px">
+        <div class="panel">
+          <h2>Buscar no Modrinth</h2>
+          <div class="toolbar">
+            <input id="shaderQuery" placeholder="ex: bliss, complementary">
+            <button id="btnShaderSearch" class="primary">Buscar</button>
+            <button id="btnShadersFolder" class="ghost">Abrir pasta</button>
+            <button id="btnShadersRefresh" class="ghost">Atualizar</button>
+          </div>
+          <div id="shaders"></div>
         </div>
-        <div class="login-row" style="margin-top:8px">
-          <input id="srvExtra" placeholder="App ID Hytale ou caminho .exe custom" style="flex:1">
-          <input id="srvAddress" placeholder="endereço p/ entrar (ex: IP público ou domínio) — opcional" style="flex:1">
-          <button id="btnSrvAdd" class="primary">Criar servidor</button>
+
+        <div class="panel">
+          <h2>Instalados <span class="chip" id="shadersCount">0</span></h2>
+          <div id="shadersInstalled"></div>
         </div>
-        <div id="servers"></div>
-        <div class="card" style="margin-top:10px">
-          <h2>🌐 Tunnel playit.gg <span class="chip">jogar de fora sem port forward</span></h2>
+      </section>
+
+      <!-- ============ TEXTURAS ============ -->
+      <section id="page-packs" class="page">
+        <header class="page-head">
+          <span class="eyebrow">Biblioteca</span>
+          <div class="head-row">
+            <h1>Texturas</h1>
+            <span id="packsCtx" class="chip"></span>
+          </div>
+          <p class="muted">Vai para <code>resourcepacks/</code>. Ative em Opções → Pacotes de recursos.</p>
+        </header>
+
+        <div class="panel">
+          <h2>Buscar no Modrinth</h2>
+          <div class="toolbar">
+            <input id="packQuery" placeholder="ex: faithful, fresh animations">
+            <button id="btnPackSearch" class="primary">Buscar</button>
+            <button id="btnPacksFolder" class="ghost">Abrir pasta</button>
+            <button id="btnPacksRefresh" class="ghost">Atualizar</button>
+          </div>
+          <div id="packs"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Instalados <span class="chip" id="packsCount">0</span></h2>
+          <div id="packsInstalled"></div>
+        </div>
+      </section>
+
+      <!-- ============ MODPACKS ============ -->
+      <section id="page-modpacks" class="page">
+        <header class="page-head">
+          <span class="eyebrow">Biblioteca</span>
+          <div class="head-row">
+            <h1>Modpacks</h1>
+            <span id="modpacksCtx" class="chip"></span>
+          </div>
+          <p class="muted">Baixa o <code>.mrpack</code> e instala tudo: mods + configs na pasta do jogo. Demora — acompanhe no console da aba Jogar.</p>
+        </header>
+
+        <div class="panel">
+          <h2>Buscar no Modrinth</h2>
+          <div class="toolbar">
+            <input id="modpackQuery" placeholder="ex: better mc, dawncraft">
+            <button id="btnModpackSearch" class="primary">Buscar</button>
+            <button id="btnModpacksFolder" class="ghost">Abrir pasta</button>
+            <button id="btnModpacksRefresh" class="ghost">Atualizar</button>
+          </div>
+          <div id="modpacks"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Baixados <span class="chip" id="modpacksCount">0</span></h2>
+          <div id="modpacksInstalled"></div>
+        </div>
+      </section>
+
+      <!-- ============ SKINS ============ -->
+      <section id="page-skins" class="page">
+        <header class="page-head">
+          <span class="eyebrow">Conta</span>
+          <div class="head-row">
+            <h1>Skins</h1>
+            <span class="chip">64x64</span>
+          </div>
+          <p class="muted">Conta Microsoft = aplica de verdade na conta. Offline = salva no launcher (vale onde o servidor aceita skin offline).</p>
+        </header>
+
+        <div class="panel">
+          <h2>Escolher skin</h2>
+          <div class="toolbar">
+            <select id="skinVariant" title="Modelo">
+              <option value="classic">Clássico (braço 4px)</option>
+              <option value="slim">Slim (braço 3px)</option>
+            </select>
+            <button id="btnSkinImport" class="primary">Importar PNG</button>
+            <button id="btnSkinsRefresh" class="ghost">Atualizar</button>
+          </div>
+          <div id="skinMsg" class="muted mt8"></div>
+          <div id="skins" class="gallery"></div>
+        </div>
+      </section>
+
+      <!-- ============ AMIGOS ============ -->
+      <section id="page-friends" class="page">
+        <header class="page-head">
+          <span class="eyebrow">Social</span>
+          <h1>Amigos</h1>
+          <p class="muted">Sala em tempo real para conversar e entrar no servidor do amigo com 1 clique.</p>
+        </header>
+
+        <div class="panel">
+          <h2>Sala online <span class="chip">tempo real</span></h2>
+          <p class="muted">Crie uma sala, passe o código e veja quem tá online. Precisa do relay ligado (<code>friend-server/server.js</code>).</p>
+          <div class="toolbar">
+            <input id="relayUrl" placeholder="ws://127.0.0.1:8091">
+            <input id="relayNick" placeholder="seu nick" maxlength="16">
+            <button id="btnRelayConnect" class="primary">Conectar</button>
+            <span id="relayStatus" class="muted"></span>
+          </div>
+
+          <div id="roomBox" style="display:none">
+            <div class="toolbar mt10">
+              <button id="btnRoomCreate" class="ghost">Criar sala</button>
+              <input id="roomCode" placeholder="código (ex: 42J3K9)" maxlength="8">
+              <button id="btnRoomJoin" class="ghost">Entrar</button>
+              <button id="btnRoomLeave" class="ghost">Sair</button>
+              <b id="roomInfo"></b>
+            </div>
+            <div id="roomMembers" class="mt10"></div>
+            <div class="toolbar mt10">
+              <input id="shareHost" placeholder="IP do meu servidor">
+              <input id="sharePort" placeholder="porta" value="25565">
+              <button id="btnShare" class="ghost">Divulgar</button>
+              <button id="btnUnshare" class="ghost">Ocultar</button>
+            </div>
+            <div id="roomChat"></div>
+            <div class="toolbar mt8">
+              <input id="chatText" placeholder="mensagem..." maxlength="300">
+              <button id="btnChatSend" class="primary">Enviar</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Lista de amigos <span class="chip">só Obsidian</span></h2>
+          <p class="muted">Lista salva neste launcher. O status é real (ping no servidor). Passe seu convite para amigos com Obsidian.</p>
+          <div class="toolbar">
+            <input id="friendNick" placeholder="nick do amigo" maxlength="24">
+            <input id="friendAddr" placeholder="IP:porta (ex: jogo.gg:25565)">
+            <button id="btnFriendAdd" class="primary">Adicionar</button>
+            <button id="btnFriendsRefresh" class="ghost">Atualizar status</button>
+          </div>
+          <div class="toolbar mt8">
+            <input id="inviteAddr" placeholder="seu servidor p/ convite">
+            <button id="btnInviteCreate" class="ghost">Criar convite</button>
+            <input id="inviteCode" placeholder="cole o código OBS1-...">
+            <button id="btnInviteAccept" class="ghost">Entrar</button>
+          </div>
+          <div id="inviteOut" class="muted"></div>
+          <div id="friends"></div>
+        </div>
+      </section>
+
+      <!-- ============ SERVIDORES ============ -->
+      <section id="page-servers" class="page">
+        <header class="page-head">
+          <span class="eyebrow">Social</span>
+          <h1>Servidores</h1>
+          <p class="muted">Suba seu próprio servidor e jogue com amigos. Minecraft baixa tudo sozinho. Hytale precisa do App ID SteamCMD.</p>
+        </header>
+
+        <div class="panel">
+          <h2>Criar servidor</h2>
+          <div class="toolbar">
+            <input id="srvName" placeholder="nome (ex: survival)">
+            <select id="srvType" title="Tipo">
+              <option value="minecraft-java">Minecraft Java</option>
+              <option value="hytale-steamcmd">Hytale (SteamCMD)</option>
+              <option value="custom">Programa custom</option>
+            </select>
+            <input id="srvVersion" placeholder="versão" value="26.3">
+            <input id="srvPort" placeholder="porta" value="25565">
+          </div>
+          <div class="toolbar mt8">
+            <input id="srvExtra" placeholder="App ID Hytale ou caminho .exe custom">
+            <input id="srvAddress" placeholder="endereço p/ entrar (IP público ou domínio) — opcional">
+            <button id="btnSrvAdd" class="primary">Criar servidor</button>
+          </div>
+          <div id="servers"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Tunnel playit.gg <span class="chip">jogar de fora sem port forward</span></h2>
           <div id="playitSteps"></div>
-          <div class="login-row" style="margin-top:8px">
-            <input id="playitSecret" type="password" placeholder="secret do agente (passo 2)" style="flex:1" autocomplete="off">
+          <div class="toolbar mt8">
+            <input id="playitSecret" type="password" placeholder="secret do agente (passo 2)" autocomplete="off">
             <button id="btnPlayitSave" class="ghost">Salvar secret</button>
             <button id="btnPlayitToggle" class="primary">Ativar tunnel</button>
           </div>
-          <div id="playitStatus" class="muted" style="margin-top:8px">Tunnel desligado.</div>
+          <div id="playitStatus" class="muted mt8">Tunnel desligado.</div>
         </div>
-      </div>
-      <div class="card">
-        <h2>Console <span id="srvConsoleName" class="chip"></span></h2>
-        <pre id="srvConsole" style="background:#05070c;border:1px solid var(--line);height:220px;overflow:auto;font-size:12px;padding:10px;border-radius:10px;">Selecione um servidor rodando.</pre>
-        <div class="login-row" style="margin-top:8px">
-          <input id="srvCmd" placeholder="comando (ex: say oi, stop, list...)" style="flex:1">
-          <button id="btnSrvCmd" class="primary">Enviar</button>
+
+        <div class="panel">
+          <h2>Console <span id="srvConsoleName" class="chip"></span></h2>
+          <pre id="srvConsole">Selecione um servidor rodando.</pre>
+          <div class="toolbar mt8">
+            <input id="srvCmd" placeholder="comando (ex: say oi, stop, list...)">
+            <button id="btnSrvCmd" class="primary">Enviar</button>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section id="page-bedrock" class="page">
-      <div class="card">
-        <h2>Bedrock <span class="chip">Store</span></h2>
-        <p class="muted">Bedrock de PC é o app da Microsoft Store (conta Xbox — sem modo offline, é regra da Microsoft).</p>
-        <div id="bedrockInfo" class="muted">Verificando...</div>
-        <div class="login-row" style="margin-top:10px">
-          <button id="btnBedrockPlay" class="primary">Abrir Minecraft Bedrock</button>
-          <button id="btnBedrockRefresh" class="ghost">Verificar de novo</button>
+      <!-- ============ BEDROCK ============ -->
+      <section id="page-bedrock" class="page">
+        <header class="page-head">
+          <span class="eyebrow">Extra</span>
+          <h1>Bedrock</h1>
+          <p class="muted">Bedrock de PC é o app da Microsoft Store (conta Xbox — sem modo offline, é regra da Microsoft).</p>
+        </header>
+
+        <div class="panel">
+          <h2>Minecraft Bedrock</h2>
+          <div id="bedrockInfo" class="muted">Verificando...</div>
+          <div class="toolbar mt10">
+            <button id="btnBedrockPlay" class="primary">Abrir Minecraft Bedrock</button>
+            <button id="btnBedrockRefresh" class="ghost">Verificar de novo</button>
+          </div>
         </div>
-      </div>
-      <div class="card">
-        <h2>Servidor Bedrock dedicado</h2>
-        <p class="muted">Baixe o servidor oficial em minecraft.net/download/server/bedrock, extraia e crie abaixo como <b>Programa custom</b> apontando o <code>bedrock_server.exe</code>.</p>
-      </div>
-    </section>
 
-    <section id="page-config" class="page">
-      <div class="card">
-        <h2>Configurações</h2>
-        <div class="grid2">
-          <label>RAM mínima <input id="ramMin" value="2G"></label>
-          <label>RAM máxima <input id="ramMax" value="4G"></label>
-          <label>Java (vazio = auto) <input id="javaPath" placeholder="C:\...\javaw.exe"></label>
-          <label>Pasta do jogo <input id="gameDir" placeholder="...\.minecraft"></label>
-          <label>Largura <input id="w" type="number" value="854"></label>
-          <label>Altura <input id="h" type="number" value="480"></label>
+        <div class="panel">
+          <h2>Servidor Bedrock dedicado</h2>
+          <p class="muted">Baixe o servidor oficial em minecraft.net/download/server/bedrock, extraia e crie na aba <b>Servidores</b> como <b>Programa custom</b> apontando o <code>bedrock_server.exe</code>.</p>
         </div>
-        <label class="check"><input id="autoUpdate" type="checkbox" checked> Atualização automática do launcher</label>
-        <label class="check"><input id="overlay" type="checkbox" checked> Ativar overlay Obsidian (menu no jogo, tecla O)</label>
-        <label class="check"><input id="softwareGL" type="checkbox"> Modo compatibilidade (PC fraco/sem driver — usa CPU, FPS menor)</label>
-        <label>Tela do jogo
-          <select id="displayMode">
-            <option value="window">Janela (largura/altura acima)</option>
-            <option value="borderless">Tela cheia em janela (recomendado p/ live)</option>
-            <option value="exclusive">Tela cheia exclusiva (F11, não captura em live)</option>
-          </select>
-        </label>
-        <button id="btnSave" class="primary">Salvar</button>
-        <span id="saveMsg" class="muted"></span>
-        <button id="btnRepair" class="ghost" title="Apaga a versão e natives p/ baixar tudo limpo">Reparar arquivos do jogo</button>
-      </div>
-    </section>
+      </section>
 
-    <section id="page-themes" class="page">
-      <div class="card">
-        <h2>🎨 Personalização Visual</h2>
-        <p class="muted">Escolha um preset ou crie seu tema personalizado. As alterações são aplicadas em tempo real.</p>
-      </div>
+      <!-- ============ CONFIG ============ -->
+      <section id="page-config" class="page">
+        <header class="page-head">
+          <span class="eyebrow">Sistema</span>
+          <h1>Configurações</h1>
+          <p class="muted">Memória, Java, resolução e comportamento do jogo.</p>
+        </header>
 
-      <!-- Preset Themes -->
-      <div class="card">
-        <h2>Temas Prontos</h2>
-        <div id="presetThemes" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;"></div>
-      </div>
-
-      <!-- Custom Colors -->
-      <div class="card">
-        <h2>Cores Personalizadas</h2>
-        <div class="grid2" style="margin-top:12px;">
-          <label>
-            <span>Cor Primária (Accent)</span>
-            <input type="color" id="themePrimary" value="#a855f7">
-          </label>
-          <label>
-            <span>Cor Secundária</span>
-            <input type="color" id="themeSecondary" value="#7c3aed">
-          </label>
+        <div class="panel">
+          <h2>Desempenho</h2>
+          <div class="grid2">
+            <label>RAM mínima <input id="ramMin" value="2G"></label>
+            <label>RAM máxima <input id="ramMax" value="4G"></label>
+            <label>Java (vazio = auto) <input id="javaPath" placeholder="C:\...\javaw.exe"></label>
+            <label>Pasta do jogo <input id="gameDir" placeholder="...\.minecraft"></label>
+            <label>Largura <input id="w" type="number" value="854"></label>
+            <label>Altura <input id="h" type="number" value="480"></label>
+          </div>
         </div>
-        <div class="login-row" style="margin-top:12px;">
-          <button id="btnSaveCustomTheme" class="primary">Salvar Tema Personalizado</button>
-          <button id="btnResetTheme" class="ghost">Resetar Padrão</button>
-        </div>
-      </div>
 
-      <!-- Background Options -->
-      <div class="card">
-        <h2>Plano de Fundo</h2>
-        <div class="grid2" style="margin-top:12px;">
-          <label>
-            <span>Tipo de Background</span>
-            <select id="bgType">
-              <option value="gradient">Gradiente (Padrão)</option>
-              <option value="solid">Cor Sólida</option>
-              <option value="dark">Escuro Total</option>
-              <option value="custom">Imagem Personalizada</option>
+        <div class="panel">
+          <h2>Comportamento</h2>
+          <label class="check"><input id="autoUpdate" type="checkbox" checked> Atualização automática do launcher</label>
+          <label class="check"><input id="overlay" type="checkbox" checked> Ativar overlay Obsidian (menu no jogo, tecla O)</label>
+          <label class="check"><input id="softwareGL" type="checkbox"> Modo compatibilidade (PC fraco/sem driver — usa CPU, FPS menor)</label>
+          <label class="field">Tela do jogo
+            <select id="displayMode">
+              <option value="window">Janela (largura/altura acima)</option>
+              <option value="borderless">Tela cheia em janela (recomendado p/ live)</option>
+              <option value="exclusive">Tela cheia exclusiva (F11, não captura em live)</option>
             </select>
           </label>
+          <div class="toolbar mt10">
+            <button id="btnSave" class="primary">Salvar</button>
+            <span id="saveMsg" class="muted"></span>
+            <button id="btnRepair" class="ghost" title="Apaga a versão e natives p/ baixar tudo limpo">Reparar arquivos do jogo</button>
+          </div>
         </div>
-        <div id="bgCustom" style="display:none;margin-top:12px;">
-          <label style="display:flex;flex-direction:column;gap:6px;font-size:13px;">
-            <span>Imagem de Fundo</span>
-            <input type="file" id="bgImageInput" accept="image/*" style="display:none;">
-            <button class="ghost" onclick="document.getElementById('bgImageInput').click()">Selecionar Imagem</button>
-            <div id="bgImagePreview" style="width:100%;height:120px;border-radius:8px;background:#120a24;border:1px solid var(--line);background-size:cover;background-position:center;"></div>
-          </label>
-        </div>
-        <div class="grid2" style="margin-top:12px;">
-          <label>
-            <span>Opacidade Overlay <span id="bgOpacityVal">85</span>%</span>
-            <input type="range" id="bgOpacity" min="0" max="100" value="85">
-          </label>
-          <label>
-            <span>Blur Background <span id="bgBlurVal">0</span>px</span>
-            <input type="range" id="bgBlur" min="0" max="50" value="0">
-          </label>
-        </div>
-      </div>
+      </section>
 
-      <!-- Import/Export -->
-      <div class="card">
-        <h2>Importar / Exportar Tema</h2>
-        <p class="muted">Compartilhe seus temas ou faça backup das configurações.</p>
-        <div class="login-row" style="margin-top:12px;">
-          <button id="btnExportTheme" class="primary">📤 Exportar JSON</button>
-          <button id="btnImportTheme" class="ghost">📥 Importar JSON</button>
-          <input type="file" id="importThemeFile" accept=".json" style="display:none;">
-        </div>
-      </div>
-    </section>
+      <!-- ============ TEMA ============ -->
+      <section id="page-themes" class="page">
+        <header class="page-head">
+          <span class="eyebrow">Sistema</span>
+          <h1>Tema</h1>
+          <p class="muted">Escolha um preset ou crie seu tema. As alterações são aplicadas em tempo real.</p>
+        </header>
 
-    <section id="page-about" class="page">
-      <div class="card" style="text-align:center">
-        <img src="../assets/icon.png" alt="Obsidian" style="width:96px;height:96px;border-radius:22px;box-shadow:0 0 30px #a855f7">
-        <h2>Obsidian Launcher</h2>
-        <p>Launcher Minecraft Java Edition em Electron.</p>
-        <ul>
-          <li>Login Microsoft oficial + modo offline</li>
-          <li>Vanilla / Fabric / Forge + Modrinth</li>
-          <li>Setup NSIS gerado via electron-builder</li>
-        </ul>
-        <p class="muted">Use apenas com jogo original. Offline não acessa servidores premium (Hypixel etc).</p>
+        <div class="panel">
+          <h2>Temas prontos</h2>
+          <div id="presetThemes" class="preset-row"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Cores personalizadas</h2>
+          <div class="grid2">
+            <label><span>Cor primária (accent)</span><input type="color" id="themePrimary" value="#a855f7"></label>
+            <label><span>Cor secundária</span><input type="color" id="themeSecondary" value="#7c3aed"></label>
+          </div>
+          <div class="toolbar mt10">
+            <button id="btnSaveCustomTheme" class="primary">Salvar tema personalizado</button>
+            <button id="btnResetTheme" class="ghost">Resetar padrão</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Plano de fundo</h2>
+          <div class="grid2">
+            <label>
+              <span>Tipo de background</span>
+              <select id="bgType">
+                <option value="gradient">Gradiente (padrão)</option>
+                <option value="solid">Cor sólida</option>
+                <option value="dark">Escuro total</option>
+                <option value="custom">Imagem personalizada</option>
+              </select>
+            </label>
+          </div>
+          <div id="bgCustom" style="display:none;margin-top:12px;">
+            <label class="field">
+              <span>Imagem de fundo</span>
+              <input type="file" id="bgImageInput" accept="image/*" style="display:none;">
+              <button class="ghost" onclick="document.getElementById('bgImageInput').click()">Selecionar imagem</button>
+              <div id="bgImagePreview"></div>
+            </label>
+          </div>
+          <div class="grid2 mt10">
+            <label>
+              <span>Opacidade overlay <span id="bgOpacityVal">85</span>%</span>
+              <input type="range" id="bgOpacity" min="0" max="100" value="85">
+            </label>
+            <label>
+              <span>Blur background <span id="bgBlurVal">0</span>px</span>
+              <input type="range" id="bgBlur" min="0" max="50" value="0">
+            </label>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Importar / exportar tema</h2>
+          <p class="muted">Compartilhe seus temas ou faça backup das configurações.</p>
+          <div class="toolbar mt10">
+            <button id="btnExportTheme" class="primary">Exportar JSON</button>
+            <button id="btnImportTheme" class="ghost">Importar JSON</button>
+            <input type="file" id="importThemeFile" accept=".json" style="display:none;">
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ SOBRE ============ -->
+      <section id="page-about" class="page">
+        <header class="page-head">
+          <span class="eyebrow">Sistema</span>
+          <h1>Sobre</h1>
+          <p class="muted">O que é o Obsidian Launcher.</p>
+        </header>
+
+        <div class="panel about-panel">
+          <img src="../assets/icon.png" alt="Obsidian">
+          <h2>Obsidian Launcher</h2>
+          <p>Launcher Minecraft Java Edition em Electron.</p>
+          <ul class="about-list">
+            <li>Login Microsoft oficial + modo offline</li>
+            <li>Vanilla / Fabric / Forge + Modrinth</li>
+            <li>Setup NSIS gerado via electron-builder</li>
+          </ul>
+          <p class="muted">Use apenas com jogo original. Offline não acessa servidores premium (Hypixel etc).</p>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Barra fixa de jogar (só na aba Jogar) -->
+    <div class="play-dock" id="playDock">
+      <div class="dock-progress">
+        <div class="bar"><div id="barFill"></div></div>
+        <span id="progress">Pronto</span>
       </div>
-    </section>
-  </main>
+      <div class="dock-main">
+        <div class="dock-field dock-profile">
+          <span class="dock-label">Perfil</span>
+          <select id="profileSelect" title="Perfil"></select>
+        </div>
+
+        <div class="dock-field">
+          <span class="dock-label">Versão do jogo</span>
+          <div class="dock-selects">
+            <select id="version" title="Versão"></select>
+            <select id="loader" title="Loader">
+              <option value="vanilla">Vanilla</option>
+              <option value="fabric">Fabric</option>
+              <option value="forge">Forge</option>
+              <option value="optifine">Forge + OptiFine</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="dock-spacer"></div>
+
+        <button id="btnPlay" class="play" type="button">Jogar</button>
+        <button id="btnStop" class="stop" type="button" style="display:none">Parar</button>
+      </div>
+    </div>
+  </div>
 </div>
+
 <script type="module" src="js/app.js"></script>
 </body>
 </html>
